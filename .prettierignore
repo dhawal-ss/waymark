@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+dist/
+dev-dist/
+coverage/
+playwright-report/
+test-results/
+apps/web/public/fonts/

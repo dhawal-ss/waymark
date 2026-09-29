@@ -1,0 +1,4 @@
+#!/bin/sh
+# Lint, typecheck, and unit tests must pass before every commit.
+set -e
+pnpm check

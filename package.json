@@ -1,0 +1,43 @@
+{
+  "name": "waymark",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "sh scripts/setup.sh",
+    "dev": "pnpm --filter @waymark/web dev",
+    "build": "pnpm -r build",
+    "preview": "pnpm --filter @waymark/web preview",
+    "lint": "pnpm lint:emdash && pnpm lint:eslint && pnpm lint:format",
+    "lint:emdash": "node scripts/check-emdash.mjs",
+    "lint:eslint": "eslint .",
+    "lint:format": "prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm test:scripts && pnpm -r test",
+    "test:e2e": "playwright test",
+    "size": "node scripts/check-bundle-size.mjs",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "ci": "pnpm check && pnpm build && pnpm size && pnpm test:e2e",
+    "test:scripts": "node --test scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^10.0.1",
+    "@material-symbols/svg-400": "^0.47.5",
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "eslint-plugin-svelte": "^3.23.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-svelte": "^4.1.1",
+    "svelte": "^5.57.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.2"
+  }
+}

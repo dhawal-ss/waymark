@@ -1,0 +1,124 @@
+:root {
+  /* Shape */
+  --shape-xs: 4px;
+  --shape-s: 8px;
+  --shape-m: 12px;
+  --shape-l: 16px;
+  --shape-xl: 28px;
+  --shape-2xl: 48px;
+  --shape-full: 9999px;
+
+  /* Type families */
+  --font-sans: 'Roboto Flex', 'Roboto Flex Fallback', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Standard easing for color and opacity */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+  --duration-long: 400ms;
+
+  /* State layer opacities */
+  --state-hover: 0.08;
+  --state-focus: 0.1;
+  --state-pressed: 0.1;
+  --state-dragged: 0.16;
+  --disabled-content: 0.38;
+  --disabled-container: 0.12;
+
+  /* Elevation */
+  --elevation-1:
+    0 1px 2px color-mix(in srgb, var(--shadow) 30%, transparent),
+    0 1px 3px 1px color-mix(in srgb, var(--shadow) 15%, transparent);
+  --elevation-2:
+    0 1px 2px color-mix(in srgb, var(--shadow) 30%, transparent),
+    0 2px 6px 2px color-mix(in srgb, var(--shadow) 15%, transparent);
+  --elevation-3:
+    0 4px 8px 3px color-mix(in srgb, var(--shadow) 15%, transparent),
+    0 1px 3px color-mix(in srgb, var(--shadow) 30%, transparent);
+
+  /* Layout */
+  --gutter: 16px;
+  --nav-bar-height: 80px;
+  --nav-rail-width: 96px;
+  --content-max: 960px;
+}
+
+/* Status tones map to color roles. */
+.tone-progress {
+  --tone-container: var(--primary-container);
+  --tone-on-container: var(--on-primary-container);
+  --tone-accent: var(--primary);
+}
+.tone-action {
+  --tone-container: var(--tertiary-container);
+  --tone-on-container: var(--on-tertiary-container);
+  --tone-accent: var(--tertiary);
+}
+.tone-good {
+  --tone-container: var(--success-container);
+  --tone-on-container: var(--on-success-container);
+  --tone-accent: var(--success);
+}
+.tone-bad {
+  --tone-container: var(--error-container);
+  --tone-on-container: var(--on-error-container);
+  --tone-accent: var(--error);
+}
+
+/* Type scale. Width (wdth) and weight (wght) carry emphasis. */
+.t-page-title {
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 640;
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
+}
+.t-counter {
+  font-size: clamp(3.75rem, 16vw, 5.5rem);
+  line-height: 1;
+  font-weight: 760;
+  font-stretch: 62%;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.t-headline {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 560;
+  font-stretch: 106%;
+}
+.t-title-large {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 520;
+}
+.t-title {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+.t-body {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+}
+.t-label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 560;
+  letter-spacing: 0.006em;
+}
+.t-small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 460;
+  letter-spacing: 0.01em;
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}

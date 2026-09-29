@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Private USCIS case tracker. Data stays on this device." />
+    <meta name="theme-color" content="#f2fbf9" />
+    <title>Waymark</title>
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link
+      rel="preload"
+      href="./fonts/roboto-flex-latin-wdth-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <script>
+      // Apply the cached theme before first paint to avoid a flash of the default colors.
+      try {
+        var css = localStorage.getItem('waymark:theme-css');
+        if (css) {
+          var style = document.createElement('style');
+          style.id = 'theme-dynamic';
+          style.textContent = css;
+          document.head.appendChild(style);
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>Waymark needs JavaScript to run. Turn it on for this site, then reload.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
