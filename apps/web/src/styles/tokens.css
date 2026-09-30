@@ -46,26 +46,42 @@
   --content-max: 960px;
 }
 
-/* Status tones map to color roles. */
+/* Status tones map to color roles. --tone-on-accent is the text color on --tone-accent. */
 .tone-progress {
   --tone-container: var(--primary-container);
   --tone-on-container: var(--on-primary-container);
   --tone-accent: var(--primary);
+  --tone-on-accent: var(--on-primary);
 }
 .tone-action {
   --tone-container: var(--tertiary-container);
   --tone-on-container: var(--on-tertiary-container);
   --tone-accent: var(--tertiary);
+  --tone-on-accent: var(--on-tertiary);
 }
 .tone-good {
   --tone-container: var(--success-container);
   --tone-on-container: var(--on-success-container);
   --tone-accent: var(--success);
+  --tone-on-accent: var(--on-success);
 }
 .tone-bad {
   --tone-container: var(--error-container);
   --tone-on-container: var(--on-error-container);
   --tone-accent: var(--error);
+  --tone-on-accent: var(--on-error);
+}
+.tone-secondary {
+  --tone-container: var(--secondary-container);
+  --tone-on-container: var(--on-secondary-container);
+  --tone-accent: var(--secondary);
+  --tone-on-accent: var(--on-secondary);
+}
+.tone-quiet {
+  --tone-container: var(--surface-container-high);
+  --tone-on-container: var(--on-surface);
+  --tone-accent: var(--inverse-surface);
+  --tone-on-accent: var(--inverse-on-surface);
 }
 
 /* Type scale. Width (wdth) and weight (wght) carry emphasis. */

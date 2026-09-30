@@ -54,17 +54,35 @@ const NAMES = [
   'calendar_add_on',
   'mobile_arrow_down',
   'share',
+  'keyboard_arrow_up',
+];
+
+// Icons used only by the lazy-loaded Updates feed. They live in their own file so they stay out of
+// the initial JS bundle.
+const FEED_NAMES = [
+  'payments',
+  'description',
+  'gavel',
+  'schedule',
+  'public',
+  'flag',
+  'volunteer_activism',
+  'work',
+  'shield',
+  'article',
 ];
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(require.resolve('@material-symbols/svg-400/package.json')), 'rounded');
 
-const lines = NAMES.map((name) => {
-  const svg = readFileSync(join(root, `${name}.svg`), 'utf8');
-  const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
-  if (paths.length !== 1) throw new Error(`${name}: expected one path, found ${paths.length}`);
-  return `  ${name.replace(/-fill$/, '_fill')}: '${paths[0]}',`;
-});
+const pathLines = (names) =>
+  names.map((name) => {
+    const svg = readFileSync(join(root, `${name}.svg`), 'utf8');
+    const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
+    if (paths.length !== 1) throw new Error(`${name}: expected one path, found ${paths.length}`);
+    return `  ${name.replace(/-fill$/, '_fill')}: '${paths[0]}',`;
+  });
+const lines = pathLines(NAMES);
 
 const out = `// Material Symbols Rounded, weight 400 (Apache License 2.0, Google).
 // Path data uses viewBox="0 -960 960 960". Regenerate with scripts/icons.mjs.
@@ -76,3 +94,14 @@ export type IconName = keyof typeof ICONS;
 `;
 writeFileSync('apps/web/src/lib/ui/icons.ts', out);
 console.log(`Wrote ${NAMES.length} icons.`);
+
+const feedOut = `// Material Symbols Rounded, weight 400 (Apache License 2.0, Google), for the Updates feed.
+// Path data uses viewBox="0 -960 960 960". Regenerate with scripts/icons.mjs.
+export const FEED_ICONS = {
+${pathLines(FEED_NAMES).join('\n')}
+} as const;
+
+export type FeedIconName = keyof typeof FEED_ICONS;
+`;
+writeFileSync('apps/web/src/routes/updates/feedIcons.ts', feedOut);
+console.log(`Wrote ${FEED_NAMES.length} feed icons.`);
