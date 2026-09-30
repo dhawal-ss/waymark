@@ -91,7 +91,10 @@ export function parseCaseStatusResponse(body: unknown, fetchedAt?: string): Offi
     events.push({ code, at, text: label.slice(0, 200) });
   };
 
-  for (const h of Array.isArray(cs.hist_case_status) ? cs.hist_case_status : []) {
+  // The adapter follows `hist_case_status`; the developer portal also mentions `hist_case_data`.
+  // Accept either name until `sandbox:check` confirms which one responses use.
+  const history = [cs.hist_case_status, cs.hist_case_data, root.hist_case_data].find(Array.isArray);
+  for (const h of history ?? []) {
     if (isObj(h)) add(text(h.completed_text_en), officialInstant(h.date));
   }
   const submittedAt = officialInstant(cs.submittedDate);

@@ -14,8 +14,8 @@ secret):
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard, Workers and Pages, Account details                                                            |
 | `CLOUDFLARE_API_TOKEN`  | My Profile, API Tokens, Create Token, "Edit Cloudflare Workers" template, then add the permission Account, D1, Edit |
-| `USCIS_CLIENT_ID`       | developer.uscis.gov, your app, Consumer key                                                                         |
-| `USCIS_CLIENT_SECRET`   | developer.uscis.gov, your app, Consumer secret                                                                      |
+| `USCIS_CLIENT_ID`       | developer.uscis.gov, your team app, Client ID (the `client_id` field of the Authorize dialog)                       |
+| `USCIS_CLIENT_SECRET`   | developer.uscis.gov, your team app, Client Secret (the `client_secret` field of the Authorize dialog)               |
 
 Then run the workflow (Actions, Deploy web app, Run workflow) or push to the default branch. It
 finds or creates the D1 database, applies migrations, deploys the Worker with
@@ -37,6 +37,37 @@ The manual steps below do the same from your own machine.
 - A Cloudflare account and `pnpm install` done in this repository.
 - Never commit credentials. They live only in Cloudflare secrets (or `.dev.vars` locally, which is
   ignored by git).
+
+## 0. Get sandbox credentials from the USCIS developer portal
+
+The Authorize dialog on the Case Status API page (`client_id`, `client_secret`, scope `read`) asks
+for credentials that the portal issues to you. There is nothing to invent or fill in about your
+case, and no personal case data goes in it. You create an app once, and the portal gives you the
+two values.
+
+1. Register a developer account at https://developer.uscis.gov/ and sign in.
+2. Create a developer team (or join one). Apps belong to a team.
+3. Create a team app, for example named "Waymark", and enable the product **Case Status API -
+   Sandbox** for it.
+4. Open the app. Copy its **Client ID** and **Client Secret**. Keep them in a password manager or in
+   Cloudflare secrets only, never in the repository or in chat.
+5. Optional, to try the API in the browser: on the Case Status API page choose **Authorize**, paste
+   the two values, leave the `read` scope checked, and choose **Authorize** again. Then open
+   **Case Status Update**, choose **Try it out**, and enter one of the staging receipt numbers listed
+   at the top of that page. The sandbox is built around those staging receipts; do not expect a real
+   receipt number to work there. The page lists receipts with and without `hist_case_data` in
+   the payload, so test one of each.
+
+Then continue with step 1 below, which checks the same credentials from your machine.
+
+The Authorize dialog shows the token URL `https://api-int.uscis.gov/oauth/accesstoken` and the flow
+`clientCredentials`. That is what `apps/server/src/uscis.ts` uses, so the values work there
+unchanged.
+
+What the official API can and cannot give you: for a receipt number it returns the case status
+text, form type, submitted and modified dates, and the status history (`hist_case_data`). It does
+not return the detailed event codes and notices that the signed-in USCIS case page shows. Waymark
+never signs in to USCIS for you, so those come from the case page you copy yourself.
 
 ## 1. Check your USCIS credentials
 
@@ -187,8 +218,22 @@ curl -X POST "$SERVER/v1/admin/run?job=processing-times" -H "Authorization: Bear
 
 ## Moving to production
 
-1. Request production access for the Case Status API in the USCIS developer portal.
-2. When approved, set `USCIS_BASE_URL` to the production base URL USCIS gives you, and update the
+USCIS lists these requirements on the Case Status API page (check the page for the current
+wording):
+
+- A registered developer account and a registered app for at least one USCIS API in the sandbox.
+- The solution implemented and tested in the sandbox, with API traffic on at least five
+  consecutive calendar days.
+- Both success responses (200) and error responses (4xx) exercised. Run `sandbox:check` with a
+  staging receipt for the 200, and with a malformed or unknown receipt number for a 4xx.
+
+Then:
+
+1. Email developer support (the address is on the Case Status API page) to request production
+   access. USCIS replies with the next steps, which include a Developer Portal Affidavit.
+2. Schedule and pass the app demo (30 minutes for the Case Status API, offered on set weekday
+   slots; see the demo page in the portal for the current times).
+3. When approved, set `USCIS_BASE_URL` to the production base URL USCIS gives you, and update the
    client id and secret if USCIS issues new ones.
-3. Deploy. `/v1/health` then reports `"environment": "production"` and the app stops showing the
+4. Deploy. `/v1/health` then reports `"environment": "production"` and the app stops showing the
    sandbox notice.

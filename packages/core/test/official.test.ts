@@ -97,6 +97,23 @@ describe('parseCaseStatusResponse', () => {
     ]);
   });
 
+  it('reads the history when it is named hist_case_data', () => {
+    const result = parseCaseStatusResponse({
+      case_status: {
+        receiptNumber: 'EAC9999103404',
+        formType: 'I-765',
+        submittedDate: '01-02-2024 10:00:00',
+        modifiedDate: '02-03-2024 09:00:00',
+        current_case_status_text_en: 'Case Was Approved',
+        hist_case_data: [{ date: '01-02-2024 10:00:00', completed_text_en: 'Case Was Received' }],
+      },
+    });
+    expect(result.ok && result.case.events.map((e) => e.text)).toEqual([
+      'Case Was Received',
+      'Case Was Approved',
+    ]);
+  });
+
   it('reports errors from the API message', () => {
     expect(parseCaseStatusResponse({ message: 'The receipt number entered is invalid' })).toEqual({
       ok: false,
