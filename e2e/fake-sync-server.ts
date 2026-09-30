@@ -3,6 +3,203 @@ import type { Page, Route } from '@playwright/test';
 
 export const SYNC_URL = 'https://sync.test';
 
+/** Public data served by the fake server. */
+export interface PublicFixture {
+  times: {
+    form: string;
+    office: string;
+    subtype: string;
+    label: string;
+    points: { publishedDate: string; months: number }[];
+  }[];
+  bulletin: {
+    chart: string;
+    preference: string;
+    category: string;
+    country: string;
+    points: { month: string; cutoff: string }[];
+  }[];
+  stats: {
+    quarter: string;
+    form: string;
+    office: string;
+    received: number | null;
+    approved: number | null;
+    denied: number | null;
+    pending: number | null;
+  }[];
+}
+
+/** One news item as the server sends it. */
+export interface NewsFixtureItem {
+  id: string;
+  source: 'federal-register' | 'uscis-feed';
+  kind: string;
+  title: string;
+  summary: string;
+  url: string;
+  publishedOn: string;
+  category: string;
+  forms: string[];
+}
+
+const FR = 'https://www.federalregister.gov/documents';
+
+/**
+ * Realistic mixed items, newest first: several categories, items for the forms of the example
+ * cases (I-485, I-765, I-130), one long title, one empty summary, and one with a link that is not
+ * on an official domain (the app must drop it).
+ */
+export function newsFixture(): NewsFixtureItem[] {
+  return [
+    {
+      id: 'federal-register:2026-18211',
+      source: 'federal-register',
+      kind: 'Rule',
+      title: 'Employment Authorization for Certain Renewal Applicants Filing Form I-765',
+      summary:
+        'The Department of Homeland Security is amending its regulations on the automatic extension of employment authorization for certain applicants who file a timely renewal.',
+      url: `${FR}/2026/09/28/2026-18211/employment-authorization-for-certain-renewal-applicants`,
+      publishedOn: '2026-09-28',
+      category: 'work',
+      forms: ['I-765'],
+    },
+    {
+      id: 'uscis-feed:news-2026-09-26-visa-bulletin',
+      source: 'uscis-feed',
+      kind: 'News release',
+      title: 'USCIS announces which chart applies for adjustment of status filing in October',
+      summary:
+        'USCIS is using the Dates for Filing chart from the Department of State October Visa Bulletin for family-sponsored and employment-based filings.',
+      url: 'https://www.uscis.gov/newsroom/alerts/uscis-announces-chart-for-october',
+      publishedOn: '2026-09-26',
+      category: 'visa',
+      forms: ['I-485'],
+    },
+    {
+      id: 'federal-register:2026-18004',
+      source: 'federal-register',
+      kind: 'Notice',
+      title:
+        'Agency Information Collection Activities: Application to Register Permanent Residence',
+      summary:
+        'U.S. Citizenship and Immigration Services invites comments on a revision of a currently approved information collection.',
+      url: `${FR}/2026/09/24/2026-18004/agency-information-collection-activities`,
+      publishedOn: '2026-09-24',
+      category: 'forms',
+      forms: ['I-485', 'I-765'],
+    },
+    {
+      id: 'uscis-feed:news-2026-09-22-scam',
+      source: 'uscis-feed',
+      kind: 'News release',
+      title: 'USCIS warns about scam callers who ask for payment by gift card',
+      summary: '',
+      url: 'https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams',
+      publishedOn: '2026-09-22',
+      category: 'safety',
+      forms: [],
+    },
+    {
+      id: 'federal-register:2026-17750',
+      source: 'federal-register',
+      kind: 'Proposed Rule',
+      title:
+        'Inadmissibility on Public Charge Grounds: Proposed Revisions to Definitions, Evidence Standards, and the Factors Officers Consider When Reviewing Applications for Adjustment of Status and Extension of Nonimmigrant Stay',
+      summary:
+        'DHS proposes to revise how it defines public charge and which evidence applicants may submit. Comments are open for 60 days.',
+      url: `${FR}/2026/09/19/2026-17750/inadmissibility-on-public-charge-grounds`,
+      publishedOn: '2026-09-19',
+      category: 'policy',
+      forms: ['I-485', 'I-539'],
+    },
+    {
+      id: 'uscis-feed:news-2026-09-17-naturalization',
+      source: 'uscis-feed',
+      kind: 'News release',
+      title: 'USCIS welcomes new citizens during Constitution Week ceremonies',
+      summary:
+        'More than 100 naturalization ceremonies took place across the country during the week of September 17.',
+      url: 'https://www.uscis.gov/newsroom/news-releases/constitution-week-ceremonies',
+      publishedOn: '2026-09-17',
+      category: 'citizenship',
+      forms: ['N-400'],
+    },
+    {
+      id: 'federal-register:2026-17402',
+      source: 'federal-register',
+      kind: 'Notice',
+      title: 'Designation of a Country for Temporary Protected Status',
+      summary:
+        'The Secretary of Homeland Security is extending the designation and describes how current beneficiaries re-register.',
+      url: `${FR}/2026/09/15/2026-17402/designation-of-a-country-for-temporary-protected-status`,
+      publishedOn: '2026-09-15',
+      category: 'humanitarian',
+      forms: ['I-821', 'I-765'],
+    },
+    {
+      id: 'uscis-feed:news-2026-09-12-processing',
+      source: 'uscis-feed',
+      kind: 'News release',
+      title: 'USCIS updates how it reports processing times for family-based petitions',
+      summary: 'Processing time pages now show the time it takes to complete 80% of cases.',
+      url: 'https://www.uscis.gov/newsroom/news-releases/processing-time-reporting',
+      publishedOn: '2026-09-12',
+      category: 'processing',
+      forms: ['I-130'],
+    },
+    {
+      id: 'federal-register:2026-17010',
+      source: 'federal-register',
+      kind: 'Rule',
+      title: 'Adjustment of the fee schedule for immigration benefit requests',
+      summary: 'DHS is adjusting the fees that USCIS charges for immigration benefit requests.',
+      url: `${FR}/2026/09/09/2026-17010/adjustment-of-the-fee-schedule`,
+      publishedOn: '2026-09-09',
+      category: 'fees',
+      forms: [],
+    },
+    {
+      id: 'uscis-feed:news-2026-09-05-not-official',
+      source: 'uscis-feed',
+      kind: 'News release',
+      title: 'Item with a link that is not on an official domain',
+      summary: 'The app must not show this item.',
+      url: 'https://immigration-updates.example.com/not-official',
+      publishedOn: '2026-09-05',
+      category: 'other',
+      forms: [],
+    },
+    {
+      id: 'federal-register:2026-16650',
+      source: 'federal-register',
+      kind: 'Notice',
+      title: 'Form I-90 edition date change',
+      summary: 'USCIS will accept the previous edition of Form I-90 until the transition ends.',
+      url: `${FR}/2026/09/02/2026-16650/form-i-90-edition-date-change`,
+      publishedOn: '2026-09-02',
+      category: 'forms',
+      forms: ['I-90'],
+    },
+  ];
+}
+
+/** `count` older items for testing paging, newest first, starting on `start` (a YYYY-MM-DD date). */
+export function olderNews(count: number, start = '2026-08-31'): NewsFixtureItem[] {
+  const base = Date.parse(`${start}T00:00:00Z`);
+  return Array.from({ length: count }, (_, i) => ({
+    id: `federal-register:2026-${String(10000 - i).padStart(5, '0')}`,
+    source: 'federal-register' as const,
+    kind: 'Notice',
+    title: `Older notice number ${i + 1}`,
+    summary: `Summary of older notice number ${i + 1}.`,
+    url: `${FR}/2026/08/01/2026-${String(10000 - i)}/older-notice-${i + 1}`,
+    publishedOn: new Date(base - Math.floor(i / 2) * 86_400_000).toISOString().slice(0, 10),
+    category: 'other',
+    forms: [],
+  }));
+}
+
 interface Sub {
   id: string;
   receipt: string;
@@ -29,7 +226,11 @@ export function officialCase(receipt: string, statuses: [string, string][]) {
 
 export async function fakeSyncServer(
   page: Page,
-  options: { cases?: Record<string, ReturnType<typeof officialCase>> } = {},
+  options: {
+    cases?: Record<string, ReturnType<typeof officialCase>>;
+    public?: PublicFixture;
+    news?: NewsFixtureItem[];
+  } = {},
 ) {
   const state = {
     token: '',
@@ -39,6 +240,11 @@ export async function fakeSyncServer(
     deleted: false,
     requests: [] as string[],
     public: options.public ?? { times: [], bulletin: [], stats: [] },
+    news: options.news ?? newsFixture(),
+    /** The next this many news requests fail with an error. */
+    newsFailures: 0,
+    /** Query strings of news requests, for example "limit=40&before=2026-09-02&beforeId=...". */
+    newsRequests: [] as string[],
   };
   let serial = 0;
   const now = () => new Date().toISOString();
@@ -175,6 +381,46 @@ export async function fakeSyncServer(
             importedAt: now(),
           })),
       });
+    }
+    if (path === '/v1/public/news') {
+      const q = url.searchParams;
+      state.newsRequests.push(q.toString());
+      if (state.newsFailures > 0) {
+        state.newsFailures--;
+        return json(route, 503, {
+          error: {
+            code: 'unavailable',
+            message: 'The news source is unavailable. Try again in a few minutes.',
+          },
+        });
+      }
+      const limit = Math.min(100, Math.max(1, Number(q.get('limit') ?? 40) || 40));
+      const before = q.get('before');
+      const beforeId = q.get('beforeId');
+      const category = q.get('category');
+      const form = q.get('form');
+      if (beforeId !== null && !/^[\w.:/-]{1,160}$/.test(beforeId))
+        return json(route, 400, {
+          error: { code: 'bad_request', message: 'beforeId is not a valid item id.' },
+        });
+      // Order is publishedOn descending, then id ascending. The cursor is the last item of the
+      // previous page: its date and id. Items on the same date with a later id come next, so none
+      // are repeated or skipped. `before` alone is exclusive by date.
+      const items = state.news
+        .filter(
+          (n) =>
+            (!before ||
+              n.publishedOn < before ||
+              (beforeId !== null && n.publishedOn === before && n.id > beforeId)) &&
+            (!category || n.category === category) &&
+            (!form || n.forms.includes(form)),
+        )
+        .sort(
+          (a, b) =>
+            b.publishedOn.localeCompare(a.publishedOn) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+        )
+        .slice(0, limit);
+      return json(route, 200, { items });
     }
     if (path === '/v1/accounts' && req.method() === 'POST') {
       state.token = `token-${Math.random().toString(36).slice(2)}`;
