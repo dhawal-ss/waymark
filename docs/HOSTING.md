@@ -31,7 +31,7 @@ still applies there.
 2. Open Settings in Waymark and choose Install Waymark, or use Chrome's menu and choose Install app.
 3. Waymark now opens from the home screen and works offline.
 4. Long-press the icon for the New case and Import USCIS JSON shortcuts.
-5. Add a case: tap Add case and enter the receipt number. With automatic checks on, the case
+5. Add a case: tap Add case (bottom right once you have cases) and enter the receipt number. With automatic checks on, the case
    appears with its status. Otherwise, or for the full history, choose Open case page (sign in on
    my.uscis.gov if asked), select all, then either:
    - choose Copy and come back to Waymark. The first time, tap Import and allow clipboard access;

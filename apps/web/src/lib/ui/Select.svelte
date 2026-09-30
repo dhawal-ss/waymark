@@ -9,21 +9,31 @@
     value: T;
     options: Option[];
     supporting?: string;
+    error?: string;
     id?: string;
     onchange?: (value: T) => void;
   }
 
-  let { label, value = $bindable(), options, supporting, id: idProp, onchange }: Props = $props();
+  let {
+    label,
+    value = $bindable(),
+    options,
+    supporting,
+    error,
+    id: idProp,
+    onchange,
+  }: Props = $props();
   const fallbackId = `select-${Math.random().toString(36).slice(2, 8)}`;
   const id = $derived(idProp ?? fallbackId);
 </script>
 
-<div class="field">
+<div class="field" class:invalid={!!error}>
   <div class="frame">
     <select
       {id}
       bind:value
-      aria-describedby={supporting ? `${id}-help` : undefined}
+      aria-describedby={error || supporting ? `${id}-help` : undefined}
+      aria-invalid={error ? 'true' : undefined}
       onchange={() => onchange?.(value)}
     >
       {#each options as option (option.value)}
@@ -38,7 +48,11 @@
       />
     </svg>
   </div>
-  {#if supporting}<p class="help" id="{id}-help">{supporting}</p>{/if}
+  {#if error}
+    <p class="help error-text" id="{id}-help">{error}</p>
+  {:else if supporting}
+    <p class="help" id="{id}-help">{supporting}</p>
+  {/if}
 </div>
 
 <style>
@@ -103,5 +117,15 @@
     color: var(--on-surface-variant);
     font-size: 0.75rem;
     line-height: 1rem;
+  }
+  .invalid select {
+    border-color: var(--error);
+  }
+  .invalid select:focus {
+    box-shadow: inset 0 0 0 1px var(--error);
+  }
+  .invalid label,
+  .error-text {
+    color: var(--error);
   }
 </style>

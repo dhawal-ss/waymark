@@ -134,23 +134,23 @@
 
 <section class="group" aria-labelledby="sync-title">
   <h2 id="sync-title" class="t-title">How cases update</h2>
-  <dl class="sync">
+  <dl class="sync t-small">
     <div>
-      <dt class="t-label">Automatic checks</dt>
+      <dt class="t-label">With automatic checks</dt>
       <dd>
         When they are on, a Waymark server checks each receipt number with the official USCIS Case
         Status API twice a day. It gives the status and dates.
       </dd>
     </div>
     <div>
-      <dt class="t-label">Case page</dt>
+      <dt class="t-label">From the case page</dt>
       <dd>
         For the full event history and notices, open the case page from a case, copy it, and come
         back. Waymark imports it. You can also share the page to Waymark.
       </dd>
     </div>
     <div>
-      <dt class="t-label">Never</dt>
+      <dt class="t-label">What Waymark never does</dt>
       <dd>
         Waymark never signs in to your USCIS account or asks for your USCIS password. USCIS does not
         let other sites read it.

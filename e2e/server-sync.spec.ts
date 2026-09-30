@@ -31,8 +31,7 @@ async function turnOn(page: Page) {
 
 async function addByReceipt(page: Page, receipt: string) {
   await page.goto('./#/cases');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'New case' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add case' });
   await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(receipt);
   await dialog.getByRole('button', { name: 'Add case' }).click();
@@ -120,10 +119,9 @@ test('falls back to the case page when USCIS does not return the receipt', async
   await fakeSyncServer(page);
   await turnOn(page);
   const dialog = await addByReceipt(page, NEW_RECEIPT);
-  await expect(dialog.getByRole('status')).toContainText(
-    'The automatic check did not return this case: USCIS has no case with this receipt number in this environment.',
+  await expect(dialog.getByRole('status')).toHaveText(
+    'Automatic checks could not find this case. This server uses the USCIS test system, so real cases are not found yet. Get the details from your USCIS account instead.',
   );
-  await expect(dialog.getByRole('status')).toContainText('USCIS test system');
   await expect(dialog.getByRole('button', { name: 'Open case page' })).toBeVisible();
 });
 

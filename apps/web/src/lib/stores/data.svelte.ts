@@ -14,13 +14,18 @@ import { readJson, removeKey, writeJson } from '../storage';
 import { showSnackbar } from './snackbar.svelte';
 
 export const PREFS_KEY = 'waymark:prefs';
-/** A copy of data whose IndexedDB write had not finished when the page was hidden or closed. */
-export const UNSAVED_KEY = 'waymark:unsaved';
+/**
+ * Copies of data whose IndexedDB write had not finished when a page was hidden or closed, one per
+ * tab (the key ends with the tab id).
+ */
+export const UNSAVED_PREFIX = 'waymark:unsaved:';
 
 export const newId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+const UNSAVED_KEY = `${UNSAVED_PREFIX}${newId()}`;
 
 // eslint-disable-next-line svelte/prefer-svelte-reactivity -- a timestamp, not reactive state
 export const nowInstant = (): string => new Date().toISOString();
@@ -69,17 +74,34 @@ let saved = 0;
  */
 function keepUnsaved(): void {
   if (!db || saved === changes) return;
-  writeJson(UNSAVED_KEY, { schema: SCHEMA_VERSION, data: $state.snapshot(store.data) });
+  writeJson(UNSAVED_KEY, {
+    schema: SCHEMA_VERSION,
+    at: Date.now(),
+    data: $state.snapshot(store.data),
+  });
+}
+
+/** Keys of unsaved copies left by tabs that closed. */
+function unsavedKeys(): string[] {
+  try {
+    return Object.keys(localStorage).filter((k) => k.startsWith(UNSAVED_PREFIX));
+  } catch {
+    return [];
+  }
 }
 
 function restoreUnsaved(): void {
-  const pending = readJson<{ schema?: unknown; data?: unknown }>(UNSAVED_KEY);
-  if (!pending || pending.schema !== SCHEMA_VERSION || !pending.data) {
-    if (pending) removeKey(UNSAVED_KEY);
-    return;
+  let newest: { at: number; data: unknown } | null = null;
+  for (const key of unsavedKeys()) {
+    const copy = readJson<{ schema?: unknown; at?: unknown; data?: unknown }>(key);
+    removeKey(key);
+    if (!copy || copy.schema !== SCHEMA_VERSION || !copy.data || typeof copy.at !== 'number')
+      continue;
+    if (!newest || copy.at > newest.at) newest = { at: copy.at, data: copy.data };
   }
+  if (!newest) return;
   // Stored data is untrusted input, like imports.
-  store.data = sanitizeData(pending.data, newId, nowInstant());
+  store.data = sanitizeData(newest.data, newId, nowInstant());
   mirrorPrefs();
   changes++;
   scheduleSave();

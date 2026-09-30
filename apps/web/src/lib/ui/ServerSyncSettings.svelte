@@ -25,7 +25,8 @@
   <h2 id="server-title" class="t-title">Automatic checks</h2>
   {#if enabled || (autoChecks() && !serverSync.error)}
     <p>
-      On. {tracked === 1 ? '1 case is' : `${tracked} cases are`} checked with USCIS twice a day through
+      On. {tracked === 0 ? 'New cases are' : tracked === 1 ? '1 case is' : `${tracked} cases are`} checked
+      with USCIS twice a day through
       <span class="t-mono">{serverSync.url.replace(/^https?:\/\//, '')}</span>.
       {serverSync.lastPullAt ? `Last updated ${relativeTime(serverSync.lastPullAt)}.` : ''}
     </p>
@@ -111,6 +112,7 @@
       </div>
     </details>
   {/if}
+  {#if serverSync.limitNote && autoChecks()}<p class="t-small">{serverSync.limitNote}</p>{/if}
   {#if serverSync.error}<p class="alert" role="alert">{serverSync.error}</p>{/if}
 </section>
 

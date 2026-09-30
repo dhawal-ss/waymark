@@ -10,7 +10,11 @@
   const sub = $derived(id ? serverSync.subscriptions[id] : undefined);
   const description = $derived(
     !id
-      ? 'Automatic checks start with the next update.'
+      ? c.demo
+        ? 'Example cases are not sent to the server.'
+        : c.uscis?.closed
+          ? 'Closed cases are not checked.'
+          : serverSync.limitNote || 'Automatic checks start with the next update.'
       : sub?.lastError
         ? `Automatic check: ${sub.lastError}`
         : sub?.lastCheckedAt

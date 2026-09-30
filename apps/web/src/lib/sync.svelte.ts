@@ -2,12 +2,13 @@
 // session and cannot be fetched cross-origin, so the user opens it and copies the page. When the
 // user comes back, Waymark reads the clipboard by itself if the browser already allows it, and
 // otherwise offers Import with one tap. Waymark never signs in or sends requests to my.uscis.gov.
+import { parseUscisJson } from '@waymark/core';
 import { importUscis, type ImportOutcome } from './actions';
 import { trackNewCases } from './serverSync.svelte';
 import { store } from './stores/data.svelte';
 import { casePath, navigate } from './stores/router.svelte';
 import { showSnackbar } from './stores/snackbar.svelte';
-import { closeSheet, openSheet } from './stores/ui.svelte';
+import { closeSheet, openSheet, ui } from './stores/ui.svelte';
 
 export const caseJsonUrl = (receipt: string): string =>
   `https://my.uscis.gov/account/case-service/api/cases/${encodeURIComponent(receipt)}`;
@@ -52,17 +53,24 @@ async function onVisible(): Promise<void> {
   if (document.visibilityState !== 'visible' || !syncWaiting.receipt) return;
   if (Date.now() > syncWaiting.until) return;
   document.removeEventListener('visibilitychange', onVisible);
-  const offer = () =>
+  const receipt = syncWaiting.receipt;
+  const offer = () => {
+    // The add sheet shows its own Import copied page button; a snackbar would sit behind it.
+    if (ui.sheet?.kind === 'case') return;
     void showSnackbar(
       'Copied the case page?',
       { label: 'Import', run: () => void importFromClipboard() },
       20000,
     );
+  };
   if (!(await clipboardAllowed())) return offer();
   await whenFocused();
   const text = await navigator.clipboard.readText().catch(() => '');
-  // Something else on the clipboard: leave it alone and offer the button.
-  if (!text.includes('{') || !importFrom(text).ok) offer();
+  // Import by itself only the case the user went to get. Anything else on the clipboard, such as
+  // an older copy of another case, is left alone.
+  const forThisCase =
+    text.includes('{') && parseUscisJson(text).cases.some((c) => c.receipt === receipt);
+  if (!forThisCase || !importFrom(text).ok) offer();
 }
 
 /** Open the case JSON in a new tab and import the copied page when the user comes back. */

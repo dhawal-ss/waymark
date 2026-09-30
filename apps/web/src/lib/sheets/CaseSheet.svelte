@@ -10,12 +10,13 @@
     type FormType,
     type StatusKey,
   } from '@waymark/core';
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { addCase, deleteCase, todayLocal, updateCase } from '../actions';
   import { autoChecks, lookupReceipt, serverSync, trackNewCases } from '../serverSync.svelte';
   import { store } from '../stores/data.svelte';
   import { casePath, navigate } from '../stores/router.svelte';
   import { showSnackbar } from '../stores/snackbar.svelte';
+  import { openSheet } from '../stores/ui.svelte';
   import { importFrom, importFromClipboard, isWaitingForReceipt, startSync } from '../sync.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -38,9 +39,10 @@
   // Seed the form once from the case being edited.
   const initial = store.data.cases.find((c) => c.id === caseId);
   let receipt = $state(initial?.receipt ?? '');
-  let form = $state<FormType>(initial?.form ?? 'I-485');
+  // Empty for a new case, so a typed case never saves a guessed form or date.
+  let form = $state<FormType | ''>(initial?.form ?? '');
   let owner = $state(initial?.owner ?? '');
-  let receivedDate = $state(initial?.receivedDate ?? today);
+  let receivedDate = $state(initial?.receivedDate ?? '');
   let status = $state<StatusKey>('received');
   let months = $state(initial?.processingMonths ? String(initial.processingMonths) : '');
   let submitted = $state(false);
@@ -53,10 +55,31 @@
   let lookupError = $state('');
   let pasted = $state('');
   let pasteError = $state('');
+  // The receipt being added, kept apart from the field: once the case exists it is a duplicate.
+  let number = $state('');
+  // Closing the sheet during a check cancels what would follow it.
+  let mounted = true;
+  onDestroy(() => (mounted = false));
 
   const others = $derived(store.data.cases.filter((c) => c.id !== caseId).map((c) => c.receipt));
   const receiptCheck = $derived(checkReceipt(receipt, others));
   const hint = $derived(prefixHint(receipt));
+  const receiptHelp = $derived(
+    autoChecks()
+      ? `${hint ?? '3 letters and 10 digits.'} Waymark gets the form, dates, and status from USCIS.`
+      : (hint ?? '3 letters and 10 digits, from the receipt notice.'),
+  );
+  const formError = $derived(form === '' ? 'Choose the form from the receipt notice.' : undefined);
+  const notFound = $derived(/no case with this receipt/i.test(lookupError));
+  const lookupNote = $derived(
+    !lookupError
+      ? ''
+      : notFound && serverSync.environment === 'sandbox'
+        ? 'Automatic checks could not find this case. This server uses the USCIS test system, so real cases are not found yet. Get the details from your USCIS account instead.'
+        : notFound
+          ? 'Automatic checks could not find this case. Check the receipt number, or get the details from your USCIS account.'
+          : `Automatic checks did not return this case. ${lookupError}`,
+  );
   const dateError = $derived(
     !isLocalDate(receivedDate)
       ? 'Enter the received date from the receipt notice.'
@@ -71,7 +94,7 @@
       ? 'Enter a number of months between 0.5 and 120, or leave it empty.'
       : undefined,
   );
-  const valid = $derived(receiptCheck.ok && !dateError && !monthsError);
+  const valid = $derived(receiptCheck.ok && !dateError && !monthsError && !formError);
   const looksLikeJson = (text: string) => text.trimStart().startsWith('{');
   // Pasting the case page into the receipt field imports it right away.
   const receiptError = $derived(
@@ -112,16 +135,31 @@
       );
       return;
     }
+    number = receiptCheck.receipt;
+    receipt = number;
+    await check();
+  }
+
+  async function check() {
     lookupError = '';
-    // Kept, because the receipt counts as a duplicate once the case exists.
-    const number = receiptCheck.receipt;
     if (autoChecks()) {
       step = 'checking';
-      const result = await lookupReceipt(number);
+      void tick().then(() => document.getElementById('case-checking')?.focus());
+      const added = number;
+      const result = await lookupReceipt(added);
+      if (!mounted) {
+        // The user closed the sheet while USCIS answered: keep the case, but stay where they are.
+        if (result.ok)
+          showSnackbar(`Added case ${added}.`, {
+            label: 'Open',
+            run: () => navigate(casePath(result.caseId).slice(1)),
+          });
+        return;
+      }
       if (result.ok) {
         onclose();
         navigate(casePath(result.caseId).slice(1));
-        showSnackbar(`Added case ${number}.`);
+        showSnackbar(`Added case ${added}.`);
         return;
       }
       lookupError = result.message;
@@ -135,7 +173,7 @@
   function submit(event: SubmitEvent) {
     event.preventDefault();
     submitted = true;
-    if (!valid || !receiptCheck.ok) {
+    if (!valid || !receiptCheck.ok || form === '') {
       // Take the user to the first field that needs fixing.
       void tick().then(() =>
         document.querySelector<HTMLElement>('#case-form [aria-invalid="true"]')?.focus(),
@@ -185,51 +223,49 @@
         autocapitalize="characters"
         spellcheck={false}
         required
-        supporting={hint ??
-          (autoChecks()
-            ? '3 letters and 10 digits. Waymark gets the form, dates, and status from USCIS.'
-            : '3 letters and 10 digits, from the receipt notice.')}
+        supporting={receiptHelp}
         error={receiptError}
       />
+      <div>
+        <Button variant="text" icon="upload_file" onclick={() => openSheet({ kind: 'import' })}
+          >Import a saved case file</Button
+        >
+      </div>
     </form>
   {:else if step === 'checking'}
-    <div class="checking" role="status">
+    <div class="checking" id="case-checking" tabindex="-1">
       <LoadingIndicator label="Checking with USCIS" size={40} />
-      <p>
-        Checking <span class="t-mono">{receiptCheck.ok ? receiptCheck.receipt : ''}</span> with USCIS.
-      </p>
+      <p>Checking <span class="t-mono">{number}</span> with USCIS.</p>
     </div>
-  {:else if step === 'uscis' && receiptCheck.ok}
+  {:else if step === 'uscis'}
     <div class="uscis" id="case-uscis">
-      {#if lookupError}
+      {#if lookupNote}
         <p class="note t-small" role="status">
           <Icon name="info" size={18} />
-          <span
-            >The automatic check did not return this case: {lookupError}{serverSync.environment ===
-            'sandbox'
-              ? ' The sync server uses the USCIS test system, which has test cases only.'
-              : ''}</span
-          >
+          <span>{lookupNote}</span>
         </p>
       {/if}
       <p>
-        Get the details for <span class="t-mono">{receiptCheck.receipt}</span> from your USCIS account.
+        Get the details for <span class="t-mono">{number}</span> from your USCIS account.
       </p>
       <ol class="steps">
         <li>Open the case page. Sign in to USCIS if asked.</li>
         <li>Select all and copy the page, then come back here. Waymark imports it for you.</li>
       </ol>
       <div class="row">
-        {#if isWaitingForReceipt(receiptCheck.receipt)}
+        {#if isWaitingForReceipt(number)}
           <Button icon="content_paste" onclick={() => importFromClipboard()}
             >Import copied page</Button
           >
         {/if}
         <Button
-          variant={isWaitingForReceipt(receiptCheck.receipt) ? 'outlined' : 'filled'}
+          variant={isWaitingForReceipt(number) ? 'outlined' : 'filled'}
           icon="open_in_new"
-          onclick={() => receiptCheck.ok && startSync(receiptCheck.receipt)}>Open case page</Button
+          onclick={() => startSync(number)}>Open case page</Button
         >
+        {#if lookupError && !notFound && autoChecks()}
+          <Button variant="outlined" icon="sync" onclick={check}>Check again</Button>
+        {/if}
       </div>
       <TextArea
         label="Or paste the copied page here"
@@ -274,10 +310,14 @@
       <Select
         label="Form"
         bind:value={form}
-        options={FORM_TYPES.map((f) => ({
-          value: f,
-          label: f === 'Other' ? 'Other' : `${f}, ${FORM_NAMES[f]}`,
-        }))}
+        error={submitted ? formError : undefined}
+        options={[
+          ...(existing ? [] : [{ value: '' as const, label: 'Choose a form' }]),
+          ...FORM_TYPES.map((f) => ({
+            value: f,
+            label: f === 'Other' ? 'Other' : `${f}, ${FORM_NAMES[f]}`,
+          })),
+        ]}
       />
       <TextField
         label="Received date"
@@ -353,6 +393,7 @@
     gap: 8px;
   }
   .checking {
+    outline: none;
     display: flex;
     flex-direction: column;
     align-items: center;

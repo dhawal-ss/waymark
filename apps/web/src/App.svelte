@@ -154,7 +154,8 @@
     padding-right: max(var(--gutter), env(safe-area-inset-right));
   }
   main {
-    min-height: calc(100dvh - var(--nav-bar-height) - 56px);
+    /* Short pages keep the footer above the floating buttons, not under them. */
+    min-height: calc(100dvh - var(--nav-bar-height) - 56px - var(--floating-space, 0px));
     padding-bottom: 24px;
   }
   main:focus {
@@ -179,7 +180,7 @@
       );
     }
     main {
-      min-height: calc(100dvh - 56px);
+      min-height: calc(100dvh - 56px - var(--floating-space, 0px));
     }
     footer {
       padding-bottom: calc(24px + var(--floating-space, 0px));

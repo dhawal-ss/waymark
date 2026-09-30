@@ -84,7 +84,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @waymark/web build
         env:
-          VITE_SYNC_URL: ${{ vars.VITE_SYNC_URL || needs.server.outputs.url }}
+          # Only a server that deployed and passed its check.
+          VITE_SYNC_URL: ${{ vars.VITE_SYNC_URL || (needs.server.result == 'success' && needs.server.outputs.url) || '' }}
       - run: pnpm size
       - uses: actions/upload-pages-artifact@v3
         with:

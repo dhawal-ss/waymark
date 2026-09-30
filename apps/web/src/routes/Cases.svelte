@@ -15,7 +15,7 @@
   import CaseCard from '../lib/ui/CaseCard.svelte';
   import DeadlineList from '../lib/ui/DeadlineList.svelte';
   import EmptyState from '../lib/ui/EmptyState.svelte';
-  import FabMenu from '../lib/ui/FabMenu.svelte';
+  import ExtendedFab from '../lib/ui/ExtendedFab.svelte';
   import Icon from '../lib/ui/Icon.svelte';
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import TextField from '../lib/ui/TextField.svelte';
@@ -243,14 +243,10 @@
   </section>
 {/if}
 
-<FabMenu
-  label="Add"
-  items={[
-    { label: 'New case', icon: 'add', onselect: () => openSheet({ kind: 'case' }) },
-    { label: 'Import JSON', icon: 'upload_file', onselect: () => openSheet({ kind: 'import' }) },
-    { label: 'New deadline', icon: 'event', onselect: () => openSheet({ kind: 'deadline' }) },
-  ]}
-/>
+<!-- The empty state has its own Add case button. -->
+{#if store.data.cases.length > 0}
+  <ExtendedFab label="Add case" icon="add" onclick={() => openSheet({ kind: 'case' })} />
+{/if}
 
 <style>
   .summary {

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import {
+  addCaseManually,
   comeBack,
   dismissSnackbar,
   FIXTURES,
@@ -63,8 +64,7 @@ test('adds a case when the case page is pasted into the receipt field', async ({
 
 test('adds a case with typed details, with validation', async ({ page }) => {
   await open(page, '/cases');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'New case' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add case' });
   const receipt = dialog.getByRole('textbox', { name: 'Receipt number' });
 
@@ -76,7 +76,13 @@ test('adds a case with typed details, with validation', async ({ page }) => {
   await receipt.fill('lin-09-990-00222');
   await dialog.getByRole('button', { name: 'Add case' }).click();
   await dialog.getByRole('button', { name: 'Enter details yourself' }).click();
-  await expect(receipt).toHaveValue('lin-09-990-00222');
+  // The receipt is saved in its standard form.
+  await expect(receipt).toHaveValue('LIN0999000222');
+  await dialog.getByLabel('Received date').fill('2025-01-15');
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await expect(dialog.getByLabel('Form')).toHaveAccessibleDescription(
+    'Choose the form from the receipt notice.',
+  );
   await dialog.getByLabel('Received date').fill('2099-01-01');
   await expect(dialog.getByText('cannot be in the future')).toBeVisible();
   await dialog.getByLabel('Received date').fill('2025-01-15');
@@ -92,8 +98,7 @@ test('adds a case with typed details, with validation', async ({ page }) => {
 
   // Duplicate receipts are rejected.
   await page.goto('./#/cases');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'New case' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
   await page
     .getByRole('dialog')
     .getByRole('textbox', { name: 'Receipt number' })
@@ -334,5 +339,26 @@ test('keeps a change made right before the page closes', async ({ page }) => {
   // Reload at once, before the IndexedDB write can finish.
   await page.reload();
   await expect(page.locator('.hero').getByText('Interview scheduled')).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('waymark:unsaved'))).toBeNull();
+  // The copy kept for the reload is removed once it is saved.
+  await expect
+    .poll(() =>
+      page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('waymark:unsaved'))),
+    )
+    .toEqual([]);
+});
+
+test('adds several cases from the Add case button', async ({ page }) => {
+  await open(page, '/cases');
+  const receipts = ['IOE0999000201', 'IOE0999000202', 'IOE0999000203'];
+  for (const receipt of receipts) {
+    await addCaseManually(page, { receipt, date: '2025-06-01' });
+    await expect(page.locator('.hero').getByText(receipt)).toBeVisible();
+  }
+  await page.goto('./#/cases');
+  await expect(page.locator('a.card')).toHaveCount(3);
+  // The labeled button is there once a case exists, and opens the add sheet at once.
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Add case' }).getByRole('textbox', { name: 'Receipt number' }),
+  ).toBeFocused();
 });

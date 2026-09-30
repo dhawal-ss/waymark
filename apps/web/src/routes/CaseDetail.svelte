@@ -10,6 +10,7 @@
     daysSinceFiling,
     milestones as buildMilestones,
     newEventCount,
+    OFFICIAL_CODE_PREFIX,
     processingDays,
     STATUS_KEYS,
     STATUSES,
@@ -225,6 +226,7 @@
     {:else}
       <p class="muted">No USCIS data yet. Get it from your USCIS account.</p>
     {/if}
+    {#if syncEnabled()}<ServerTracking {c} />{/if}
     <div class="row">
       {#if isWaitingFor(c.id)}
         <Button icon="content_paste" onclick={() => importFromClipboard(c.id)}
@@ -239,17 +241,16 @@
       <Button
         variant="text"
         icon="content_paste"
-        onclick={() => openSheet({ kind: 'import', caseId: c.id })}>Paste JSON</Button
+        onclick={() => openSheet({ kind: 'import', caseId: c.id })}>Paste copied page</Button
       >
       {#if fresh > 0}<Button variant="text" icon="check" onclick={() => markCaseSeen(c.id)}
           >Mark as seen</Button
         >{/if}
     </div>
     <p class="t-small muted">
-      Open case page opens my.uscis.gov while you are signed in. Select all, copy, and come back;
-      Waymark imports it. Event meanings are community documented, not official.
+      For notices and the full history, open the case page, copy it, and come back. Event meanings
+      are community documented, not official.
     </p>
-    {#if syncEnabled()}<ServerTracking {c} />{/if}
   </section>
 
   {#if stats}
@@ -386,7 +387,7 @@
   <section class="panel" aria-labelledby="timeline-title">
     <h2 id="timeline-title" class="t-title">Timeline</h2>
     {#if items.length === 0}
-      <p class="muted">No entries. Log a status or sync with USCIS.</p>
+      <p class="muted">No entries. Log a status or get the case page from USCIS.</p>
     {:else}
       <ol class="timeline" role="list">
         {#each items as item (item.key)}
@@ -398,7 +399,10 @@
               </div>
               <span class="t-small muted">
                 {formatDateTime(item.at, zone)}. Day {item.day}.
-                <span class="t-mono">{item.code}</span>,
+                <!-- Official API statuses get made-up "CS:" codes; only real USCIS codes show. -->
+                {#if !item.code.startsWith(OFFICIAL_CODE_PREFIX)}<span class="t-mono"
+                    >{item.code}</span
+                  >,{/if}
                 {CATEGORY_LABELS[item.info.category].toLowerCase()}.
               </span>
             {:else}

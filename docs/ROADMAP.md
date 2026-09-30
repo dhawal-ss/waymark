@@ -125,6 +125,14 @@ Case tracking:
       example cases), and can be turned off in Settings.
 - [x] The GitHub Pages workflow deploys the sync server to Cloudflare when its secrets are set,
       and builds the app with its address.
+- [x] A labeled Add case button stays on the Cases page, so adding the second and later cases is
+      one tap. Importing a saved case file starts from the add sheet.
+- [x] Typed details start empty (no guessed form or date). Closing the sheet during a check
+      cancels it. Coming back imports only the case the user went to get.
+- [x] Settings saved before automatic checks existed keep them off; an address entered for public
+      data alone does not turn them on. The deploy smoke-tests the server with a sandbox receipt.
+- [x] A change made right before the app closes is kept (a copy per tab while the write is
+      pending).
 
 Reliability:
 

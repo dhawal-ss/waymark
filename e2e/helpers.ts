@@ -65,22 +65,22 @@ export function snackbar(page: Page, text: string | RegExp) {
 /** Open the import sheet from the Add menu on the Cases page. */
 export async function openImport(page: Page): Promise<void> {
   await page.goto('./#/cases');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'Import JSON' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await page.getByRole('button', { name: 'Import a saved case file' }).click();
 }
 
 /** Add a case by typing its details, the fallback when USCIS data is not available. */
 export async function addCaseManually(
   page: Page,
-  c: { receipt: string; date: string; name?: string; status?: string },
+  c: { receipt: string; date: string; form?: string; name?: string; status?: string },
 ): Promise<void> {
   await page.goto('./#/cases');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'New case' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add case' });
   await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(c.receipt);
   await dialog.getByRole('button', { name: 'Add case' }).click();
   await dialog.getByRole('button', { name: 'Enter details yourself' }).click();
+  await dialog.getByLabel('Form').selectOption(c.form ?? 'I-485');
   await dialog.getByLabel('Received date').fill(c.date);
   if (c.name) await dialog.getByRole('textbox', { name: 'Name' }).fill(c.name);
   if (c.status) await dialog.getByLabel('Current status').selectOption(c.status);

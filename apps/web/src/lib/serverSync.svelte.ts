@@ -41,6 +41,8 @@ interface SyncState {
   environment: 'sandbox' | 'production' | '';
   off: boolean;
   busy: boolean;
+  /** Why some cases are not tracked, for example the per-device limit. */
+  limitNote: string;
   lastPullAt: string;
   error: string;
   subscriptions: Record<string, SubscriptionView>;
@@ -53,6 +55,7 @@ export const serverSync: SyncState = $state({
   environment: '',
   off: false,
   busy: false,
+  limitNote: '',
   lastPullAt: '',
   error: '',
   subscriptions: {},
@@ -100,7 +103,7 @@ async function persist(): Promise<void> {
         token: serverSync.token,
         cursor: serverSync.cursor,
         environment: serverSync.environment,
-        off: serverSync.off || undefined,
+        off: serverSync.off,
       }
     : undefined;
   await saveSetting(SETTING, saved);
@@ -114,6 +117,8 @@ export async function setServerUrl(rawUrl: string): Promise<boolean> {
     return false;
   }
   serverAddress.error = '';
+  // An address entered for public data alone does not turn on automatic checks.
+  if (!serverSync.token && url !== serverSync.url) serverSync.off = true;
   serverSync.url = url;
   await persist();
   return true;
@@ -163,7 +168,9 @@ function remember(subs: SubscriptionView[]): void {
 export async function initServerSync(): Promise<void> {
   const saved = await loadSetting<Saved>(SETTING);
   if (saved?.url) serverSync.url = saved.url;
-  serverSync.off = Boolean(saved?.off);
+  // Records saved before automatic checks existed have no `off`: without an account, the user
+  // had sync off (or set the address for public data only), so it stays off.
+  serverSync.off = saved ? (saved.off ?? !saved.token) : false;
   if (serverSync.url) serverAddress.draft = serverSync.url;
   if (saved?.token && saved.url) {
     serverSync.token = saved.token;
@@ -190,7 +197,10 @@ let pullAgain = false;
 // eslint-disable-next-line svelte/prefer-svelte-reactivity -- bookkeeping, not reactive state
 const adding = new Set<string>();
 
+let active = 0;
+
 async function run<T>(task: () => Promise<T>): Promise<T | null> {
+  active++;
   serverSync.busy = true;
   serverSync.error = '';
   try {
@@ -199,8 +209,9 @@ async function run<T>(task: () => Promise<T>): Promise<T | null> {
     serverSync.error = e instanceof Error ? e.message : 'Server sync failed.';
     return null;
   } finally {
-    serverSync.busy = false;
-    if (pullAgain) {
+    active--;
+    serverSync.busy = active > 0;
+    if (active === 0 && pullAgain) {
       pullAgain = false;
       void pull({ quiet: true });
     }
@@ -283,21 +294,28 @@ export async function lookupReceipt(receipt: string): Promise<Lookup> {
 }
 
 async function addFromServer(receipt: string): Promise<Lookup> {
+  // Kept here: a pull that starts when this request ends clears serverSync.error.
+  let failure = '';
   const res = await run(async () => {
-    await ensureAccount();
-    return api<{ subscription: SubscriptionView; latest: { case: ParsedCase } | null }>(
-      '/v1/subscriptions',
-      { method: 'POST', body: JSON.stringify({ receipt }) },
-    );
+    try {
+      await ensureAccount();
+      return await api<{ subscription: SubscriptionView; latest: { case: ParsedCase } | null }>(
+        '/v1/subscriptions',
+        { method: 'POST', body: JSON.stringify({ receipt }) },
+      );
+    } catch (e) {
+      failure = e instanceof Error ? e.message : '';
+      throw e;
+    }
   });
-  if (!res) return { ok: false, message: serverSync.error };
+  if (!res) return { ok: false, message: failure || 'The sync server did not respond.' };
   serverSync.subscriptions[res.subscription.id] = res.subscription;
   if (!res.latest) {
     return {
       ok: false,
       message:
         res.subscription.lastError ??
-        'USCIS did not answer yet. The server tries again at the next scheduled check.',
+        'USCIS did not answer. Try again in a few minutes, or get the details from your USCIS account.',
     };
   }
   mergeFromServer([res.latest.case], { add: receipt });
@@ -319,6 +337,7 @@ function link(caseId: string, subscriptionId: string): void {
  * per-device limit) and tries again at the next pull.
  */
 async function trackMissing(): Promise<void> {
+  serverSync.limitNote = '';
   for (const c of store.data.cases.filter(needsTracking)) {
     try {
       const res = await api<{
@@ -328,7 +347,8 @@ async function trackMissing(): Promise<void> {
       serverSync.subscriptions[res.subscription.id] = res.subscription;
       link(c.id, res.subscription.id);
       if (res.latest) mergeFromServer([res.latest.case]);
-    } catch {
+    } catch (e) {
+      if (e instanceof SyncError && e.status === 409) serverSync.limitNote = e.message;
       return;
     }
   }
@@ -371,6 +391,8 @@ export async function disableServerSync({
   quiet = false,
   turnOff = true,
 }: { quiet?: boolean; turnOff?: boolean } = {}): Promise<boolean> {
+  // An account still being created would otherwise survive turning off.
+  await creating?.catch(() => undefined);
   if (serverSync.token) {
     const deleted = await run(async () => {
       try {
@@ -446,11 +468,22 @@ export async function refreshCase(caseId: string): Promise<void> {
   });
 }
 
+/** Cases linked to a subscription the server no longer has are tracked again on the next pull. */
+function unlinkMissing(): void {
+  const stale = (c: Case) =>
+    c.serverTracking && !serverSync.subscriptions[c.serverTracking.subscriptionId];
+  if (!store.data.cases.some(stale)) return;
+  mutate((d) => {
+    for (const c of d.cases) if (stale(c)) delete c.serverTracking;
+  });
+}
+
 /** Stop tracking receipts whose case was deleted on this device, so they stop using quota. */
 async function dropOrphans(): Promise<void> {
-  const local = new Set(store.data.cases.map((c) => c.receipt));
   for (const sub of Object.values(serverSync.subscriptions)) {
-    if (local.has(sub.receipt) || adding.has(sub.receipt)) continue;
+    // Checked each time: a case can be added (or restored with Undo) while this loop waits.
+    if (store.data.cases.some((c) => c.receipt === sub.receipt) || adding.has(sub.receipt))
+      continue;
     try {
       await api(`/v1/subscriptions/${encodeURIComponent(sub.id)}`, { method: 'DELETE' });
       delete serverSync.subscriptions[sub.id];
@@ -475,6 +508,7 @@ export async function pull({ quiet }: { quiet: boolean }): Promise<void> {
       subscriptions: SubscriptionView[];
     }>(`/v1/updates?after=${serverSync.cursor}`);
     remember(res.subscriptions);
+    unlinkMissing();
     const summary = mergeFromServer(Array.isArray(res.items) ? res.items.map((i) => i?.case) : []);
     await dropOrphans();
     serverSync.cursor = res.cursor;
