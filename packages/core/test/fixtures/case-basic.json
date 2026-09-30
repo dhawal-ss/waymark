@@ -1,0 +1,35 @@
+{
+  "receiptNumber": "IOE0999000111",
+  "formType": "I485",
+  "formName": "Application to Register Permanent Residence or Adjust Status",
+  "submissionTimestamp": "2025-02-14T03:30:00.000Z",
+  "updatedAtTimestamp": "2025-06-02T17:05:11.201Z",
+  "closed": false,
+  "elisChannelType": "Online",
+  "applicantName": "REDACTED PERSON",
+  "mailingAddress": { "street": "1 Example St {apt}", "zip": "00000" },
+  "actionCodeText": "Should be dropped",
+  "events": [
+    { "eventCode": "IAF", "createdAtTimestamp": "2025-02-14T03:31:00.000Z", "eventId": "e1" },
+    { "eventCode": "FNA", "createdAtTimestamp": "2025-03-01T15:00:00.000Z" },
+    { "eventCode": "FTA0", "eventTimestamp": "2025-03-20T12:00:00.000Z" },
+    { "eventCode": "ZZZ9", "createdAtTimestamp": "2025-04-01T12:00:00.000Z" },
+    { "eventCode": "EX", "createdAtTimestamp": "2025-04-02T12:00:00.000Z" },
+    { "eventCode": "", "createdAtTimestamp": "2025-04-03T12:00:00.000Z" },
+    { "eventCode": "FI", "createdAtTimestamp": "not a date" }
+  ],
+  "notices": [
+    {
+      "letterId": "L-1",
+      "generationDate": "2025-02-15T08:00:00.000Z",
+      "actionType": "Receipt notice",
+      "recipient": "REDACTED PERSON"
+    },
+    {
+      "letterId": "L-2",
+      "generationDate": "2025-02-20T08:00:00.000Z",
+      "actionType": "Biometrics appointment",
+      "appointmentDateTime": "2025-03-01T15:00:00.000Z"
+    }
+  ]
+}

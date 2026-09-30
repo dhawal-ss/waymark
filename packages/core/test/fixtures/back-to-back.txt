@@ -1,0 +1,4 @@
+Copied from the browser:
+{"receiptNumber":"IOE0999000444","formType":"I131","events":[{"eventCode":"IAF","createdAtTimestamp":"2025-01-02T10:00:00Z"}],"note":"brace } inside { a string \"quoted\""}
+{"receiptNumber":"IOE0999000555","formType":"I130","events":[{"eventCode":"FTA0","createdAtTimestamp":"2025-01-03T10:00:00Z"}]}
+{"receiptNumber":"IOE0999000666","formType":"I90","events":[

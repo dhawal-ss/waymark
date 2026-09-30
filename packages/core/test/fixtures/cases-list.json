@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "receiptNumber": "lin-09-990-00222",
+      "formType": "I765",
+      "submissionTimestamp": 1735732800000,
+      "events": [{ "eventCode": "IAF", "createdAtTimestamp": 1735732800000 }]
+    },
+    {
+      "receiptNumber": "MSC0999000333",
+      "formName": "N400",
+      "events": [{ "eventCode": "DA", "eventTimestamp": "2025-05-05T20:00:00Z" }]
+    },
+    { "receiptNumber": "BAD", "events": [] }
+  ]
+}

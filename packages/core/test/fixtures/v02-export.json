@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "id": "c1",
+      "receipt": "EAC 09 990 00777",
+      "form": "I-751",
+      "name": "Pat",
+      "received": "2024-11-01",
+      "status": "biometrics",
+      "months": "18",
+      "notes": "Old notes",
+      "uscis": {
+        "lastSync": "2025-01-10T09:00:00Z",
+        "events": [{ "code": "IAF", "at": "2024-11-01T12:00:00Z" }],
+        "notices": [{ "letterId": "X" }]
+      }
+    },
+    {
+      "id": "c2",
+      "receiptNumber": "WAC0999000888",
+      "formType": "I129",
+      "owner": "Kim",
+      "receivedDate": "2025-01-15",
+      "history": [
+        { "date": "2025-01-15", "status": "received" },
+        { "date": "2025-03-01", "status": "rfe", "note": "Evidence requested" },
+        { "date": "bad", "status": "rfe" }
+      ]
+    },
+    { "id": "c3", "receipt": "not-a-receipt", "received": "2025-01-01" }
+  ],
+  "deadlines": [
+    { "id": "d1", "caseId": "c2", "title": "Respond to RFE", "date": "2025-05-20", "done": false },
+    { "label": "Broken", "due": "someday" }
+  ],
+  "series": [
+    {
+      "name": "My office",
+      "points": [
+        ["2025-01-01", 12],
+        ["2025-02-01", "12.5"]
+      ]
+    },
+    { "name": "Other", "data": [{ "date": "2025-01-01", "value": 7 }] }
+  ],
+  "visa": {
+    "pd": "2021-06-01",
+    "category": "EB-2",
+    "cutoffs": [
+      { "month": "2025-01", "cutoff": "2020-01-01" },
+      { "month": "2025-02", "cutoff": "C" }
+    ]
+  },
+  "checks": { "i485": { "photos": true, "passport": false }, "n400": ["fee"] },
+  "srcChecked": { "newsroom": "2025-04-01T00:00:00Z", "bad": "nope" },
+  "fees": [{ "label": "I-485 filing", "amount": 1440 }],
+  "prefs": { "theme": "dark", "hc": true, "seed": "#E0457B", "mask": true }
+}
