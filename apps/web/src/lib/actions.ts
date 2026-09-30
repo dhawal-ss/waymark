@@ -2,6 +2,7 @@
 // offers undo.
 import {
   buildIcs,
+  sanitizeParsedCase,
   describeMerge,
   exampleData,
   markSeen,
@@ -20,7 +21,16 @@ import {
   type StatusKey,
   STATUSES,
 } from '@waymark/core';
-import { mutate, newId, nowInstant, replaceAll, store, tz } from './stores/data.svelte';
+import {
+  forgetLegacy,
+  mutate,
+  newId,
+  nowInstant,
+  replaceAll,
+  restoreLegacy,
+  store,
+  tz,
+} from './stores/data.svelte';
 import { downloadFile } from './download';
 import { clock } from './stores/clock.svelte';
 import { showSnackbar } from './stores/snackbar.svelte';
@@ -147,9 +157,12 @@ export function importUscis(text: string): ImportOutcome {
  * Merge cases from the sync server. Only receipts that exist locally are merged, so deleting a
  * case here is never undone by the server. Returns the summary, or null when nothing matched.
  */
-export function mergeFromServer(parsed: ParsedCase[]): MergeSummary | null {
+export function mergeFromServer(parsed: unknown[]): MergeSummary | null {
   const local = new Set(store.data.cases.map((c) => c.receipt));
-  const known = parsed.filter((p) => local.has(p.receipt));
+  // Server responses are untrusted input, like imports.
+  const known = parsed
+    .map(sanitizeParsedCase)
+    .filter((p): p is ParsedCase => p !== null && local.has(p.receipt));
   if (known.length === 0) return null;
   let summary: MergeSummary | null = null;
   mutate((d) => {
@@ -233,9 +246,32 @@ export function importDataFile(text: string): { ok: boolean; message: string } {
   return { ok: true, message: '' };
 }
 
-export function deleteEverything(): void {
+/** True when there is anything for Delete everything to delete. */
+export function hasData(): boolean {
+  const d = store.data;
+  return (
+    d.cases.length + d.deadlines.length + d.series.length + d.fees.length > 0 ||
+    d.visa.cutoffs.length > 0 ||
+    Object.values(d.checklists).some((items) => items.length > 0) ||
+    Object.keys(d.sourceChecks).length > 0 ||
+    store.legacy !== null
+  );
+}
+
+export function deleteEverything(note?: string): void {
   const prefs = { ...store.data.prefs };
-  replaceAll({ ...emptyData(), prefs }, { undo: 'Deleted all cases and data.' });
+  // The v0.2 copy would otherwise be offered for import again.
+  const legacy = store.legacy;
+  forgetLegacy();
+  replaceAll(
+    { ...emptyData(), prefs },
+    {
+      undo: note ? `Deleted all cases and data. ${note}` : 'Deleted all cases and data.',
+      onUndo: () => {
+        if (legacy !== null) restoreLegacy(legacy);
+      },
+    },
+  );
 }
 
 export async function copyText(text: string, done: string): Promise<void> {

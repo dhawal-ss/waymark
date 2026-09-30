@@ -194,7 +194,8 @@ describe('lists', () => {
     );
     expect(summary.inProgress).toBe(3);
     expect(summary.longestWait).toEqual({ caseId: 'g', days: 912 });
-    expect(summary.nextDeadline?.id).toBe('d4');
+    // An overdue open deadline comes before upcoming ones.
+    expect(summary.nextDeadline?.id).toBe('d1');
   });
 
   it('writes a one-line summary', () => {

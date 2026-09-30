@@ -26,6 +26,9 @@ test('imports a v0.2 export, then deletes everything and undoes it', async ({ pa
 
   await page.goto('./#/settings');
   await page.getByRole('button', { name: 'Delete everything' }).click();
+  // The second step confirms.
+  await expect(page.getByText('Delete all cases, deadlines, series, and tool data')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete everything' }).click();
   await page.goto('./#/cases');
   await expect(page.getByRole('heading', { name: 'No cases yet' })).toBeVisible();
   await snackbar(page, 'Deleted all cases and data.').getByRole('button', { name: 'Undo' }).click();

@@ -26,15 +26,12 @@
   // Search appears once the list is long enough to need it.
   const SEARCH_FROM = 6;
   let query = $state('');
+  // Compare letters and digits only, so "IOE 0123", "i-485", and "mary jane" all match.
+  const plain = (v: string) => v.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   const matches = (c: Case, q: string) => {
-    const needle = q
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, '');
+    const needle = plain(q);
     if (!needle) return true;
-    return [c.receipt, c.owner, c.form, c.form.replace('-', '')].some((v) =>
-      v.toLowerCase().includes(needle),
-    );
+    return [c.receipt, c.owner, c.form].some((v) => plain(v).includes(needle));
   };
   const filtered = $derived(sorted.filter((c) => matches(c, query)));
   const cases = $derived(filtered.filter((c) => !isClosed(c, zone)));

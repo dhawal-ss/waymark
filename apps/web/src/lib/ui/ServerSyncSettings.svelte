@@ -97,7 +97,7 @@
         icon="delete"
         class="danger"
         disabled={serverSync.busy}
-        onclick={disableServerSync}
+        onclick={() => disableServerSync()}
       >
         Turn off and delete server data
       </Button>

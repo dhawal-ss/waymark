@@ -1,7 +1,7 @@
 <script lang="ts">
   import { SEED_PRESETS, type ThemeMode } from '@waymark/theme';
   import { buildExport, today } from '@waymark/core';
-  import { deleteEverything, importDataFile } from '../lib/actions';
+  import { deleteEverything, hasData, importDataFile } from '../lib/actions';
   import { flushSaves, nowInstant, store } from '../lib/stores/data.svelte';
   import { showSnackbar } from '../lib/stores/snackbar.svelte';
   import Button from '../lib/ui/Button.svelte';
@@ -18,6 +18,17 @@
   import Switch from '../lib/ui/Switch.svelte';
 
   const prefs = $derived(store.data.prefs);
+
+  let confirmingDelete = $state(false);
+  async function confirmDelete() {
+    confirmingDelete = false;
+    const serverDeleted = syncEnabled() ? await disableServerSync({ quiet: true }) : true;
+    deleteEverything(
+      serverDeleted
+        ? undefined
+        : 'The sync server did not delete your data. Turn off server sync when you are online.',
+    );
+  }
 
   const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const zones = (() => {
@@ -177,20 +188,40 @@
     Import accepts Waymark exports and v0.2 data. It replaces all current data; you can undo right
     after.
   </p>
-  <div class="actions">
-    <Button
-      variant="outlined"
-      icon="delete"
-      class="danger"
-      onclick={() => {
-        deleteEverything();
-        if (syncEnabled()) void disableServerSync();
-      }}>Delete everything</Button
-    >
-  </div>
+  {#if confirmingDelete}
+    <div class="confirm" role="group" aria-labelledby="confirm-delete">
+      <p id="confirm-delete">
+        Delete all cases, deadlines, series, and tool data on this device?
+        {#if syncEnabled()}
+          This also turns off server sync and deletes your receipt numbers from the sync server,
+          which cannot be undone.
+        {/if}
+      </p>
+      <div class="actions">
+        <Button variant="filled" icon="delete" class="danger-filled" onclick={confirmDelete}
+          >Delete everything</Button
+        >
+        <Button variant="text" onclick={() => (confirmingDelete = false)}>Cancel</Button>
+      </div>
+    </div>
+  {:else}
+    <div class="actions">
+      <Button
+        variant="outlined"
+        icon="delete"
+        class="danger"
+        disabled={!hasData() && !syncEnabled()}
+        onclick={() => (confirmingDelete = true)}>Delete everything</Button
+      >
+    </div>
+  {/if}
   <p class="muted t-small">
-    Deletes all cases, deadlines, series, and tool data. Display settings are kept. You can undo
-    right after, except that server sync is turned off and its data deleted.
+    {#if hasData() || syncEnabled()}
+      Deletes all cases, deadlines, series, and tool data, including a Waymark v0.2 copy in this
+      browser. Display settings and the sync server address are kept. You can undo right after.
+    {:else}
+      There is nothing to delete.
+    {/if}
   </p>
 </section>
 
@@ -247,6 +278,19 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--shape-l);
+    background: var(--error-container);
+    color: var(--on-error-container);
+  }
+  .actions :global(.danger-filled) {
+    background: var(--error);
+    color: var(--on-error);
   }
   .actions :global(.danger) {
     color: var(--error);

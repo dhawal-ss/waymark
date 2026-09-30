@@ -60,7 +60,7 @@ export async function checkReceipt(deps: CheckerDeps, row: ReceiptRow): Promise<
     return { kind: 'failed', message };
   }
 
-  const parsed = parseCaseStatusResponse(result.body);
+  const parsed = parseCaseStatusResponse(result.body, stamp);
   if (!parsed.ok || parsed.case.receipt !== receipt) {
     const message = parsed.ok ? 'USCIS returned a different receipt number.' : parsed.error;
     await deps.store.recordCheck(row.hmac, stamp, message);

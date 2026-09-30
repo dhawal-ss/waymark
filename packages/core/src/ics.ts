@@ -15,7 +15,7 @@ export function icsEscape(text: string): string {
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n');
+    .replace(/\r\n|\r|\n/g, '\\n');
 }
 
 /** Fold lines longer than 75 octets, continuing with a leading space. */

@@ -130,7 +130,7 @@
     const source = { chart, preference, category: bCategory, country: bCountry };
     try {
       const { points } = await fetchBulletin(source);
-      const { cutoffs, unavailable } = bulletinCutoffs(points);
+      const { cutoffs, unavailable, latestUnavailable } = bulletinCutoffs(points);
       const label = `${catLabel(bCategory)}, ${countryLabel(bCountry)}`;
       mutate(
         (d) => {
@@ -140,7 +140,7 @@
           d.visa.source = { kind: 'visa-bulletin', ...source, updatedAt: nowInstant() };
         },
         {
-          undo: `Loaded ${plural(cutoffs.length, 'month')} from the Visa Bulletin${unavailable > 0 ? `; ${plural(unavailable, 'month')} marked unavailable were left out` : ''}.`,
+          undo: `Loaded ${plural(cutoffs.length, 'month')} from the Visa Bulletin${unavailable > 0 ? `; ${plural(unavailable, 'month')} marked unavailable were left out` : ''}.${latestUnavailable ? ' The latest bulletin marks this category unavailable, so no visa can be issued this month.' : ''}`,
         },
       );
       category = label;

@@ -42,8 +42,20 @@ export function caseTone(c: Case, timeZone?: string): Tone {
   return STATUSES[currentStatus(c, timeZone)].tone;
 }
 
+/** USCIS marked the case closed, by flag or by a closing event after every status change. */
+export function closedByUscis(c: Case): boolean {
+  if (c.uscis?.closed === true) return true;
+  const events = c.uscis?.events ?? [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const info = eventInfo(events[i]!.code, events[i]!.text);
+    if (info.category === 'closed') return true;
+    if (info.status) return false;
+  }
+  return false;
+}
+
 export function isClosed(c: Case, timeZone?: string): boolean {
-  return STATUSES[currentStatus(c, timeZone)].closed || c.uscis?.closed === true;
+  return STATUSES[currentStatus(c, timeZone)].closed || closedByUscis(c);
 }
 
 export function daysSinceFiling(c: Case, on: LocalDate): number {
@@ -221,9 +233,8 @@ export function casesSummary(
     const days = daysSinceFiling(c, on);
     if (!longestWait || days > longestWait.days) longestWait = { caseId: c.id, days };
   }
-  const upcoming = deadlines
-    .filter((d) => !d.done && d.date >= on)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Overdue deadlines come first: they are the most urgent.
+  const upcoming = deadlines.filter((d) => !d.done).sort((a, b) => a.date.localeCompare(b.date));
   return { inProgress: open.length, longestWait, nextDeadline: upcoming[0] ?? null };
 }
 
@@ -244,7 +255,7 @@ export interface AppointmentSuggestion {
 
 /**
  * Upcoming appointments from USCIS notices (biometrics, interviews) that are not yet deadlines
- * for this case. Matching is by case, date, and title.
+ * for this case. Any deadline for the case on the same date counts as the appointment.
  */
 export function appointmentSuggestions(
   c: Case,
@@ -252,9 +263,7 @@ export function appointmentSuggestions(
   on: LocalDate,
   timeZone?: string,
 ): AppointmentSuggestion[] {
-  const existing = new Set(
-    deadlines.filter((d) => d.caseId === c.id).map((d) => `${d.date}|${d.title}`),
-  );
+  const existing = new Set(deadlines.filter((d) => d.caseId === c.id).map((d) => d.date));
   const out: AppointmentSuggestion[] = [];
   const seen = new Set<string>();
   for (const n of c.uscis?.notices ?? []) {
@@ -265,7 +274,7 @@ export function appointmentSuggestions(
     if (date < on) continue;
     const title = n.actionType?.trim() || 'USCIS appointment';
     const key = `${date}|${title}`;
-    if (existing.has(key) || seen.has(key)) continue;
+    if (existing.has(date) || seen.has(key)) continue;
     seen.add(key);
     out.push({ key, title, date, instant: instant.toISOString() });
   }

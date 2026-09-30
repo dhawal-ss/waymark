@@ -85,6 +85,52 @@ describe('data store', () => {
     expect(again.store.data.fees).toHaveLength(1);
   });
 
+  it('undo reverts only its own change and keeps later ones', async () => {
+    const s = await freshStore();
+    const snack = await import('../src/lib/stores/snackbar.svelte');
+    await s.initData();
+    s.mutate((d) => {
+      d.deadlines.push({ id: 'a', title: 'A', date: '2025-08-01', done: false, createdAt: NOW });
+      d.deadlines.push({ id: 'b', title: 'B', date: '2025-08-02', done: false, createdAt: NOW });
+    });
+    s.mutate((d) => (d.deadlines = d.deadlines.filter((x) => x.id !== 'a')), {
+      undo: 'Deleted deadline: A.',
+    });
+    const undo = snack.snackbar.current?.action;
+    s.mutate((d) => {
+      const b = d.deadlines.find((x) => x.id === 'b');
+      if (b) b.done = true;
+    });
+    undo?.run();
+    expect(s.store.data.deadlines.map((d) => [d.id, d.done])).toEqual([
+      ['a', false],
+      ['b', true],
+    ]);
+  });
+
+  it('never saves over data it could not load', async () => {
+    const seed = await freshStore();
+    await seed.initData();
+    seed.mutate((d) => d.fees.push({ id: 'f1', label: 'Kept', cents: 1 }));
+    await seed.flushSaves();
+
+    vi.resetModules();
+    vi.doMock('../src/lib/db', async (original) => ({
+      ...(await original<typeof import('../src/lib/db')>()),
+      loadAll: () => Promise.reject(new Error('UnknownError')),
+    }));
+    const broken = await import('../src/lib/stores/data.svelte');
+    await broken.initData();
+    expect(broken.store.storageError).toMatch(/blocked local storage/);
+    broken.mutate((d) => (d.prefs.theme = 'dark'));
+    await broken.flushSaves();
+    vi.doUnmock('../src/lib/db');
+
+    const after = await freshStore();
+    await after.initData();
+    expect(after.store.data.fees).toEqual([{ id: 'f1', label: 'Kept', cents: 1 }]);
+  });
+
   it('offers v0.2 data found in localStorage', async () => {
     localStorage.setItem('waymark:v1', '{"cases":[]}');
     const s = await freshStore();

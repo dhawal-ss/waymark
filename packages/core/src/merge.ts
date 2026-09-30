@@ -1,6 +1,7 @@
 // Merge parsed USCIS case JSON into existing cases.
 import { today, type LocalDate } from './dates.ts';
 import type { ParsedCase } from './elis.ts';
+import { OFFICIAL_CODE_PREFIX } from './official.ts';
 import {
   eventKey,
   type Case,
@@ -48,11 +49,13 @@ export function filingDate(
   return today(timeZone || undefined, new Date(source));
 }
 
+const sourceOf = (code: string) => (code.startsWith(OFFICIAL_CODE_PREFIX) ? 'api' : 'json');
+
 function mergeUscis(
   prev: UscisData | undefined,
   p: ParsedCase,
   now: Instant,
-): { uscis: UscisData; added: number } {
+): { uscis: UscisData; added: number; grew: boolean } {
   const events = unionEvents(prev?.events ?? [], p.events);
   const allKeys = events.map(eventKey);
   let knownKeys: string[];
@@ -64,7 +67,10 @@ function mergeUscis(
     newKeys = [];
   } else {
     const known = new Set(prev.knownKeys);
-    const fresh = allKeys.filter((k) => !known.has(k));
+    // A source seen for the first time (USCIS JSON or the Case Status API) brings its whole
+    // history, which is not news.
+    const sources = new Set(prev.events.map((e) => sourceOf(e.code)));
+    const fresh = allKeys.filter((k) => !known.has(k) && sources.has(sourceOf(k)));
     added = fresh.length;
     knownKeys = [...new Set([...prev.knownKeys, ...allKeys])];
     newKeys = [...new Set([...prev.newKeys, ...fresh])];
@@ -86,7 +92,7 @@ function mergeUscis(
   if (closed !== undefined) uscis.closed = closed;
   if (channel) uscis.channel = channel;
   if (formName) uscis.formName = formName;
-  return { uscis, added };
+  return { uscis, added, grew: events.length > (prev?.events.length ?? 0) };
 }
 
 /** Merge by receipt number. Creates missing cases. Returns new arrays; inputs are not changed. */
@@ -118,14 +124,15 @@ export function mergeImport(
       continue;
     }
     const firstImport = !existing.uscis;
-    const { uscis, added } = mergeUscis(existing.uscis, p, now);
+    const { uscis, added, grew } = mergeUscis(existing.uscis, p, now);
     next[index] = {
       ...existing,
       form: existing.form === 'Other' && p.form ? p.form : existing.form,
       uscis,
       updatedAt: now,
     };
-    if (added > 0 || firstImport) summary.updated.push({ receipt: p.receipt, newEvents: added });
+    if (added > 0 || firstImport || grew)
+      summary.updated.push({ receipt: p.receipt, newEvents: added });
     else summary.unchanged.push(p.receipt);
   }
   return { cases: next, summary };

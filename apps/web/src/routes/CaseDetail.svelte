@@ -121,7 +121,14 @@
       ? 'Enter a number of months between 0.5 and 120.'
       : undefined,
   );
+  // Follow changes made elsewhere (edit sheet, Undo, another tab) unless the field is being edited.
+  let editingMonths = $state(false);
+  $effect(() => {
+    const stored = c?.processingMonths;
+    if (!editingMonths) months = stored === undefined ? '' : String(stored);
+  });
   function saveMonths() {
+    editingMonths = false;
     if (!c || monthsError || monthsValue === c.processingMonths) return;
     updateCase(id, { processingMonths: monthsValue });
   }
@@ -326,6 +333,7 @@
         label="Published processing time, months"
         bind:value={months}
         inputmode="decimal"
+        onfocus={() => (editingMonths = true)}
         onchange={saveMonths}
         onblur={saveMonths}
         error={monthsError}

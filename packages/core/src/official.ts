@@ -8,8 +8,13 @@ import type { UscisEvent } from './model.ts';
 import { isValidReceipt, normalizeReceipt } from './receipt.ts';
 import type { StatusKey } from './statuses.ts';
 
-/** Status text keyword rules, most specific first. */
-const RULES: [RegExp, StatusKey][] = [
+/** Status text keyword rules, most specific first. Null means the text does not change status. */
+const RULES: [RegExp, StatusKey | null][] = [
+  // Requests about the case (expedite, fee waiver, rescheduling) do not decide the case itself.
+  [
+    /expedite|fee waiver|reschedul|withdrawal acknowledgement|benefit received by other means/i,
+    null,
+  ],
   [/intent to deny/i, 'noid'],
   [/denied/i, 'denied'],
   [/(response|evidence) .*(was )?received|received .*response/i, 'rfe_resp'],
@@ -32,7 +37,7 @@ const RULES: [RegExp, StatusKey][] = [
 
 /** Status for an official status text, or undefined when no rule matches. */
 export function officialStatusKey(text: string): StatusKey | undefined {
-  for (const [pattern, status] of RULES) if (pattern.test(text)) return status;
+  for (const [pattern, status] of RULES) if (pattern.test(text)) return status ?? undefined;
   return undefined;
 }
 
@@ -66,7 +71,7 @@ const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 export type OfficialResult = { ok: true; case: ParsedCase } | { ok: false; error: string };
 
 /** Parse a Case Status API response body. Keeps only receipt, form, dates, and status texts. */
-export function parseCaseStatusResponse(body: unknown): OfficialResult {
+export function parseCaseStatusResponse(body: unknown, fetchedAt?: string): OfficialResult {
   const root = isObj(body) ? body : {};
   const cs = isObj(root.case_status) ? root.case_status : root;
   const receipt = normalizeReceipt(text(cs.receiptNumber));
@@ -90,7 +95,8 @@ export function parseCaseStatusResponse(body: unknown): OfficialResult {
     if (isObj(h)) add(text(h.completed_text_en), officialInstant(h.date));
   }
   const submittedAt = officialInstant(cs.submittedDate);
-  const modifiedAt = officialInstant(cs.modifiedDate) ?? submittedAt;
+  // Without dates the current status is still shown, dated when it was fetched.
+  const modifiedAt = officialInstant(cs.modifiedDate) ?? submittedAt ?? toInstant(fetchedAt);
   add(text(cs.current_case_status_text_en), modifiedAt);
   events.sort((a, b) => a.at.localeCompare(b.at));
 

@@ -139,7 +139,9 @@ describe('official events in the core pipeline', () => {
       '{"receiptNumber":"EAC9999103402","events":[{"eventCode":"LAA","createdAtTimestamp":"2023-10-20T12:00:00Z"}]}',
     );
     const merged = mergeImport(cases, elis.cases, { now: NOW, makeId: idFactory() });
-    expect(merged.summary.updated).toEqual([{ receipt: 'EAC9999103402', newEvents: 1 }]);
+    // The JSON is a new source for this case, so its history is added but not marked new.
+    expect(merged.summary.updated).toEqual([{ receipt: 'EAC9999103402', newEvents: 0 }]);
+    expect(merged.cases[0]!.uscis!.newKeys).toEqual([]);
     expect(currentStatus(merged.cases[0]!, 'UTC')).toBe('card_prod');
   });
 

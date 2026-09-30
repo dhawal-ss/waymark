@@ -44,7 +44,9 @@ export function parseSeriesCsv(text: string): CsvResult<SeriesPoint> {
   rows(text).forEach(({ line, cells }, index) => {
     const [dateCell = '', valueCell = ''] = cells;
     const date = parseDateInput(dateCell);
-    const value = Number(valueCell.replace(/[^\d.-]/g, ''));
+    // Accept "7", "7.5", or "7 months"; reject "N/A" and "TBD" instead of reading them as 0.
+    const cleaned = valueCell.trim().replace(/\s*(months?|mo)\.?$/i, '');
+    const value = /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN;
     if (index === 0 && !date) return; // header row
     if (!date) {
       errors.push(`Line ${line}: "${dateCell}" is not a date. Use YYYY-MM-DD or MM/DD/YYYY.`);

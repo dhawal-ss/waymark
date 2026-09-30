@@ -55,15 +55,20 @@ function mirrorPrefs(): void {
   writeJson(PREFS_KEY, $state.snapshot(store.data.prefs));
 }
 
+// Counts changes, so a reload that finishes after a newer change does not overwrite it.
+let changes = 0;
+
 async function load(): Promise<void> {
   if (!db) return;
+  const started = changes;
   const { schema, raw } = await loadAll(db);
   // Nothing saved yet: keep the prefs mirrored from localStorage.
-  if (schema === null) return;
+  if (schema === null || changes !== started) return;
   const migrated = schema !== null && schema < SCHEMA_VERSION ? migrateData(raw, schema) : raw;
   const data = sanitizeData(migrated, newId, nowInstant());
   if (raw.prefs === undefined) data.prefs = store.data.prefs;
   store.data = data;
+  undoLog = null;
   mirrorPrefs();
 }
 
@@ -77,6 +82,9 @@ export async function initData(): Promise<void> {
     });
     await load();
   } catch {
+    // Never save over data that could not be read.
+    db?.close();
+    db = null;
     store.storageError =
       'This browser blocked local storage, so changes will be lost when you close the tab. Turn off private browsing or allow site data, then reload.';
   }
@@ -147,25 +155,69 @@ export interface MutateOptions {
   undo?: string | (() => string);
   /** Snackbar text without an undo action. */
   message?: string;
+  /** Runs after Undo restores the data, for state kept outside AppData. */
+  onUndo?: () => void;
 }
 
+/** Remove the Waymark v0.2 copy from localStorage. */
+export function forgetLegacy(): void {
+  try {
+    localStorage.removeItem(V02_STORAGE_KEY);
+  } catch {
+    // Storage blocked: nothing was stored either.
+  }
+  store.legacy = null;
+}
+
+/** Put the Waymark v0.2 copy back, for Undo. */
+export function restoreLegacy(text: string): void {
+  try {
+    localStorage.setItem(V02_STORAGE_KEY, text);
+  } catch {
+    // Storage blocked.
+  }
+  store.legacy = text;
+}
+
+type Change = (data: AppData) => void;
+
+// The last undoable change: the state before it and the changes made since, which Undo replays so
+// it reverts only that change.
+let undoLog: { before: AppData; later: Change[] } | null = null;
+
 /** Change data in place and persist it. With `undo`, the previous state can be restored. */
-export function mutate(change: (data: AppData) => void, options: MutateOptions = {}): void {
+export function mutate(change: Change, options: MutateOptions = {}): void {
+  changes++;
   const before = options.undo ? ($state.snapshot(store.data) as AppData) : null;
   change(store.data);
   scheduleSave();
   if (before && options.undo) {
+    const log = { before, later: [] as Change[] };
+    undoLog = log;
     const text = typeof options.undo === 'function' ? options.undo() : options.undo;
     showSnackbar(text, {
       label: 'Undo',
       run: () => {
-        store.data = structuredClone(before);
+        if (undoLog !== log) return;
+        undoLog = null;
+        changes++;
+        const next = structuredClone(log.before);
+        for (const later of log.later) {
+          try {
+            later(next);
+          } catch {
+            // A later change that depended on the undone one no longer applies.
+          }
+        }
+        store.data = next;
         scheduleSave();
+        options.onUndo?.();
         showSnackbar('Undone.');
       },
     });
-  } else if (options.message) {
-    showSnackbar(options.message);
+  } else {
+    undoLog?.later.push(change);
+    if (options.message) showSnackbar(options.message);
   }
 }
 

@@ -129,9 +129,9 @@ function normalizeCase(raw: JsonObject): ParsedCase | string {
     if (!isObject(n)) continue;
     const notice: UscisNotice = {};
     const letterId = str(n.letterId);
-    const generationDate = str(n.generationDate);
+    const generationDate = toInstant(n.generationDate);
     const actionType = str(n.actionType);
-    const appointmentDateTime = str(n.appointmentDateTime);
+    const appointmentDateTime = toInstant(n.appointmentDateTime);
     if (letterId) notice.letterId = letterId;
     if (generationDate) notice.generationDate = generationDate;
     if (actionType) notice.actionType = actionType;

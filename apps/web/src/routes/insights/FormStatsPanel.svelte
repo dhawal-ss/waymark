@@ -6,6 +6,7 @@
     fetchStatForms,
     publicDataOn,
     type FormStatRecord,
+    officialUrl,
   } from '../../lib/publicData';
   import { store } from '../../lib/stores/data.svelte';
   import LineChart from '../../lib/ui/LineChart.svelte';
@@ -64,7 +65,10 @@
       ),
     })).filter((s) => s.points.length > 0),
   );
-  const sources = $derived([...new Set(rows.map((r) => r.sourceUrl))]);
+  const DATA_PAGE =
+    'https://www.uscis.gov/tools/reports-and-studies/immigration-and-citizenship-data';
+  // Only official links are shown, whatever the server sends.
+  const sources = $derived([...new Set(rows.map((r) => officialUrl(r.sourceUrl, DATA_PAGE)))]);
   const quarters = $derived(rows.map((r) => r.quarter));
 </script>
 

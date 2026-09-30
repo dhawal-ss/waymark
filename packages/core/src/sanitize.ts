@@ -1,7 +1,7 @@
 // Validate untrusted records (imports, stored data) into the typed model. Invalid records are
 // dropped; invalid optional fields are removed.
 import { isLocalDate } from './dates.ts';
-import { toInstant } from './elis.ts';
+import { toInstant, type ParsedCase } from './elis.ts';
 import { FORM_TYPES, normalizeFormType, type FormType } from './forms.ts';
 import {
   DEFAULT_PREFS,
@@ -29,8 +29,26 @@ export const isObj = (v: unknown): v is Obj =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 export const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 export const asString = (v: unknown): string => (typeof v === 'string' ? v : '');
-const asId = (v: unknown, makeId: IdFactory): string =>
-  typeof v === 'string' && v.trim() ? v : typeof v === 'number' ? String(v) : makeId();
+// Ids end up in URLs (#/case/<id>) and as keyed-list keys, so keep them short and plain.
+const ID = /^[A-Za-z0-9_-]{1,64}$/;
+const asId = (v: unknown, makeId: IdFactory): string => {
+  const id = typeof v === 'number' && Number.isFinite(v) ? String(v) : v;
+  return typeof id === 'string' && ID.test(id) ? id : makeId();
+};
+/** Text limited to a sane length, so a crafted import cannot bloat storage. */
+const text = (v: unknown, max: number): string => asString(v).slice(0, max);
+// Keys that must never be copied from untrusted objects into plain objects.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** Give every record in a collection a distinct id, replacing repeats with fresh ones. */
+function uniqueIds<T extends { id: string }>(items: T[], makeId: IdFactory): T[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    while (seen.has(item.id)) item.id = makeId();
+    seen.add(item.id);
+  }
+  return items;
+}
 const asBool = (v: unknown): boolean => v === true;
 const instantOr = (v: unknown, fallback: Instant): Instant => toInstant(v) ?? fallback;
 
@@ -52,23 +70,30 @@ export function sanitizeManual(raw: unknown, makeId: IdFactory, now: Instant): M
     status: raw.status,
     createdAt: instantOr(raw.createdAt, now),
   };
-  const note = asString(raw.note).trim();
+  const note = text(raw.note, 2000).trim();
   if (note) entry.note = note;
   return entry;
 }
 
-function sanitizeUscis(raw: unknown, now: Instant): UscisData | undefined {
-  if (!isObj(raw)) return undefined;
+function sanitizeEvents(raw: unknown): UscisEvent[] {
   const events: UscisEvent[] = [];
-  for (const e of asArray(raw.events)) {
+  const seen = new Set<string>();
+  for (const e of asArray(raw).slice(0, 5000)) {
     if (!isObj(e)) continue;
-    const code = asString(e.code).trim().toUpperCase();
+    const code = text(e.code, 40).trim().toUpperCase();
     const at = toInstant(e.at);
-    const text = asString(e.text).trim().slice(0, 200);
-    if (code && at) events.push(text ? { code, at, text } : { code, at });
+    const label = text(e.text, 200).trim();
+    const key = `${code}|${at}`;
+    if (!code || !at || seen.has(key)) continue;
+    seen.add(key);
+    events.push(label ? { code, at, text: label } : { code, at });
   }
-  events.sort((a, b) => a.at.localeCompare(b.at));
-  const notices: UscisNotice[] = asArray(raw.notices)
+  return events.sort((a, b) => a.at.localeCompare(b.at));
+}
+
+function sanitizeNotices(raw: unknown): UscisNotice[] {
+  return asArray(raw)
+    .slice(0, 500)
     .filter(isObj)
     .map((n) => {
       const out: UscisNotice = {};
@@ -78,13 +103,26 @@ function sanitizeUscis(raw: unknown, now: Instant): UscisData | undefined {
         'actionType',
         'appointmentDateTime',
       ] as const) {
-        const v = asString(n[k]).trim();
+        // Dates are stored as instants so every view reads them the same way.
+        const v =
+          k === 'generationDate' || k === 'appointmentDateTime'
+            ? toInstant(n[k])
+            : text(n[k], 200).trim();
         if (v) out[k] = v;
       }
       return out;
     });
+}
+
+function sanitizeUscis(raw: unknown, now: Instant): UscisData | undefined {
+  if (!isObj(raw)) return undefined;
+  const events = sanitizeEvents(raw.events);
+  const notices = sanitizeNotices(raw.notices);
   const keys = new Set(events.map((e) => `${e.code}|${e.at}`));
-  const strings = (v: unknown) => asArray(v).filter((k): k is string => typeof k === 'string');
+  const strings = (v: unknown) =>
+    asArray(v)
+      .slice(0, 5000)
+      .filter((k): k is string => typeof k === 'string' && k.length <= 300);
   const uscis: UscisData = {
     lastSyncedAt: instantOr(raw.lastSyncedAt, now),
     events,
@@ -97,10 +135,36 @@ function sanitizeUscis(raw: unknown, now: Instant): UscisData | undefined {
   if (submittedAt) uscis.submittedAt = submittedAt;
   if (updatedAt) uscis.updatedAt = updatedAt;
   if (typeof raw.closed === 'boolean') uscis.closed = raw.closed;
-  if (asString(raw.channel)) uscis.channel = asString(raw.channel);
-  if (asString(raw.formName)) uscis.formName = asString(raw.formName);
+  if (asString(raw.channel)) uscis.channel = text(raw.channel, 40);
+  if (asString(raw.formName)) uscis.formName = text(raw.formName, 200);
   return uscis;
 }
+
+/**
+ * Validate a parsed case that did not come from this device's own parser, such as a sync server
+ * response. Returns null when the receipt is not valid.
+ */
+export function sanitizeParsedCase(raw: unknown): ParsedCase | null {
+  if (!isObj(raw)) return null;
+  const receipt = normalizeReceipt(asString(raw.receipt));
+  if (!isValidReceipt(receipt)) return null;
+  const parsed: ParsedCase = {
+    receipt,
+    form: raw.form == null || raw.form === '' ? null : asForm(raw.form),
+    events: sanitizeEvents(raw.events),
+    notices: sanitizeNotices(raw.notices),
+  };
+  const submittedAt = toInstant(raw.submittedAt);
+  const updatedAt = toInstant(raw.updatedAt);
+  if (submittedAt) parsed.submittedAt = submittedAt;
+  if (updatedAt) parsed.updatedAt = updatedAt;
+  if (typeof raw.closed === 'boolean') parsed.closed = raw.closed;
+  if (asString(raw.channel)) parsed.channel = text(raw.channel, 40);
+  if (asString(raw.formName)) parsed.formName = text(raw.formName, 200);
+  return parsed;
+}
+
+export const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9_-]{1,64}$/;
 
 export function sanitizeCase(raw: unknown, makeId: IdFactory, now: Instant): Case | null {
   if (!isObj(raw)) return null;
@@ -110,12 +174,15 @@ export function sanitizeCase(raw: unknown, makeId: IdFactory, now: Instant): Cas
     id: asId(raw.id, makeId),
     receipt,
     form: asForm(raw.form),
-    owner: asString(raw.owner).trim(),
+    owner: text(raw.owner, 200).trim(),
     receivedDate: raw.receivedDate,
-    notes: asString(raw.notes),
-    manual: asArray(raw.manual)
-      .map((m) => sanitizeManual(m, makeId, now))
-      .filter((m): m is ManualEntry => m !== null),
+    notes: text(raw.notes, 20000),
+    manual: uniqueIds(
+      asArray(raw.manual)
+        .map((m) => sanitizeManual(m, makeId, now))
+        .filter((m): m is ManualEntry => m !== null),
+      makeId,
+    ),
     createdAt: instantOr(raw.createdAt, now),
     updatedAt: instantOr(raw.updatedAt, now),
   };
@@ -123,7 +190,11 @@ export function sanitizeCase(raw: unknown, makeId: IdFactory, now: Instant): Cas
   if (months) c.processingMonths = months;
   const uscis = sanitizeUscis(raw.uscis, now);
   if (uscis) c.uscis = uscis;
-  if (isObj(raw.serverTracking) && typeof raw.serverTracking.subscriptionId === 'string') {
+  if (
+    isObj(raw.serverTracking) &&
+    typeof raw.serverTracking.subscriptionId === 'string' &&
+    SUBSCRIPTION_ID.test(raw.serverTracking.subscriptionId)
+  ) {
     c.serverTracking = {
       subscriptionId: raw.serverTracking.subscriptionId,
       since: instantOr(raw.serverTracking.since, now),
@@ -135,7 +206,7 @@ export function sanitizeCase(raw: unknown, makeId: IdFactory, now: Instant): Cas
 
 export function sanitizeDeadline(raw: unknown, makeId: IdFactory, now: Instant): Deadline | null {
   if (!isObj(raw) || !isLocalDate(raw.date)) return null;
-  const title = asString(raw.title).trim();
+  const title = text(raw.title, 200).trim();
   if (!title) return null;
   const d: Deadline = {
     id: asId(raw.id, makeId),
@@ -254,7 +325,8 @@ export function isTimeZone(zone: string): boolean {
 
 function stringMap(raw: unknown, valid: (v: unknown) => boolean): Record<string, never> {
   const out: Record<string, unknown> = {};
-  if (isObj(raw)) for (const [k, v] of Object.entries(raw)) if (valid(v)) out[k] = v;
+  if (isObj(raw))
+    for (const [k, v] of Object.entries(raw)) if (!UNSAFE_KEYS.has(k) && valid(v)) out[k] = v;
   return out as Record<string, never>;
 }
 
@@ -270,32 +342,44 @@ export function sanitizeData(raw: unknown, makeId: IdFactory, now: Instant): App
       cases.push(c);
     }
   }
+  uniqueIds(cases, makeId);
   const caseIds = new Set(cases.map((c) => c.id));
-  const deadlines = asArray(d.deadlines)
-    .map((x) => sanitizeDeadline(x, makeId, now))
-    .filter((x): x is Deadline => x !== null)
-    .map((x) => {
-      if (x.caseId && !caseIds.has(x.caseId)) delete x.caseId;
-      return x;
-    });
+  const deadlines = uniqueIds(
+    asArray(d.deadlines)
+      .map((x) => sanitizeDeadline(x, makeId, now))
+      .filter((x): x is Deadline => x !== null),
+    makeId,
+  ).map((x) => {
+    if (x.caseId && !caseIds.has(x.caseId)) delete x.caseId;
+    return x;
+  });
   const checklists: Record<string, string[]> = {};
   if (isObj(d.checklists)) {
     for (const [k, v] of Object.entries(d.checklists)) {
-      checklists[k] = asArray(v).filter((i): i is string => typeof i === 'string');
+      if (!/^[a-z0-9-]{1,64}$/.test(k)) continue;
+      checklists[k] = asArray(v).filter(
+        (i): i is string => typeof i === 'string' && i.length <= 100,
+      );
     }
   }
   return {
     cases,
     deadlines,
-    series: asArray(d.series)
-      .map((x) => sanitizeSeries(x, makeId))
-      .filter((x): x is Series => x !== null),
+    series: uniqueIds(
+      asArray(d.series)
+        .map((x) => sanitizeSeries(x, makeId))
+        .filter((x): x is Series => x !== null),
+      makeId,
+    ),
     visa: sanitizeVisa(d.visa),
     checklists,
     sourceChecks: stringMap(d.sourceChecks, (v) => typeof v === 'string' && !!toInstant(v)),
-    fees: asArray(d.fees)
-      .map((x) => sanitizeFee(x, makeId))
-      .filter((x): x is Fee => x !== null),
+    fees: uniqueIds(
+      asArray(d.fees)
+        .map((x) => sanitizeFee(x, makeId))
+        .filter((x): x is Fee => x !== null),
+      makeId,
+    ),
     prefs: sanitizePrefs(d.prefs),
   };
 }

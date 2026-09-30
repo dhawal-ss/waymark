@@ -1,6 +1,12 @@
 // Public data (processing times, Visa Bulletin cutoffs, quarterly form data) from the sync
 // server. Off by default. Requests carry only the form or category being viewed.
-import type { Cutoff, LocalDate, SeriesPoint } from '@waymark/core';
+import {
+  isLocalDate,
+  sanitizeCutoff,
+  type Cutoff,
+  type LocalDate,
+  type SeriesPoint,
+} from '@waymark/core';
 import { mutate, nowInstant, store } from './stores/data.svelte';
 import { serverSync } from './serverSync.svelte';
 
@@ -105,7 +111,12 @@ export const fetchFormStats = (form: string) =>
 /** One point per publication; the latest value wins when USCIS republishes on the same date. */
 export function timePoints(points: TimePoint[]): SeriesPoint[] {
   const byDate = new Map<string, number>();
-  for (const p of points) byDate.set(p.publishedDate, p.months);
+  // Server responses are untrusted: keep only well-formed points.
+  for (const p of Array.isArray(points) ? points : []) {
+    if (!p || !isLocalDate(p.publishedDate)) continue;
+    if (typeof p.months !== 'number' || !Number.isFinite(p.months) || p.months < 0) continue;
+    byDate.set(p.publishedDate, p.months);
+  }
   return [...byDate]
     .map(([date, value]) => ({ date, value }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -115,11 +126,35 @@ export function timePoints(points: TimePoint[]): SeriesPoint[] {
 export function bulletinCutoffs(points: BulletinPoint[]): {
   cutoffs: Cutoff[];
   unavailable: number;
+  /** The most recent bulletin marks the category unavailable. */
+  latestUnavailable: boolean;
 } {
-  const cutoffs = points.flatMap((p) =>
-    p.cutoff === 'U' ? [] : [{ month: p.month, cutoff: p.cutoff }],
+  const list = (Array.isArray(points) ? points : []).filter(
+    (p) => p && typeof p.month === 'string',
   );
-  return { cutoffs, unavailable: points.length - cutoffs.length };
+  const cutoffs = list
+    .map((p) => (p.cutoff === 'U' ? null : sanitizeCutoff(p)))
+    .filter((c): c is Cutoff => c !== null);
+  const latest = [...list].sort((a, b) => a.month.localeCompare(b.month)).at(-1);
+  return {
+    cutoffs,
+    unavailable: list.filter((p) => p.cutoff === 'U').length,
+    latestUnavailable: latest?.cutoff === 'U',
+  };
+}
+
+const OFFICIAL_HOSTS = ['uscis.gov', 'travel.state.gov', 'state.gov'];
+
+/** The link when it points to an official https source, else the fallback. */
+export function officialUrl(raw: unknown, fallback: string): string {
+  try {
+    const url = new URL(String(raw));
+    const host = url.hostname.toLowerCase();
+    const official = OFFICIAL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+    return url.protocol === 'https:' && official ? url.href : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 /** Update linked series and cutoffs from the server. Quiet; failures leave data unchanged. */

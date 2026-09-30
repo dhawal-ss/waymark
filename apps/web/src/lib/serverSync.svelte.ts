@@ -1,7 +1,7 @@
 // Optional sync through a Waymark sync server that checks receipts with the official USCIS Case
 // Status API. Off by default. Only receipt numbers of cases the user chooses are sent. The sync
 // key is stored outside the exported data because it is a credential.
-import { describeMerge, type ParsedCase } from '@waymark/core';
+import { describeMerge, isValidReceipt, SUBSCRIPTION_ID, type ParsedCase } from '@waymark/core';
 import { mergeFromServer } from './actions';
 import { loadSetting, mutate, nowInstant, saveSetting, store } from './stores/data.svelte';
 import { showSnackbar } from './stores/snackbar.svelte';
@@ -48,7 +48,13 @@ export const serverSync: SyncState = $state({
 
 export const syncEnabled = (): boolean => Boolean(serverSync.token && serverSync.url);
 
-export class SyncError extends Error {}
+export class SyncError extends Error {
+  readonly status: number;
+  constructor(message: string, status = 0) {
+    super(message);
+    this.status = status;
+  }
+}
 
 /** Accept https URLs, and http only for local development. */
 export function normalizeServerUrl(raw: string): string | null {
@@ -100,12 +106,29 @@ async function api<T>(path: string, init: RequestInit = {}, token = serverSync.t
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
   if (!res.ok)
-    throw new SyncError(body?.error?.message ?? `The sync server returned HTTP ${res.status}.`);
+    throw new SyncError(
+      body?.error?.message ?? `The sync server returned HTTP ${res.status}.`,
+      res.status,
+    );
   return body as T;
 }
 
+/** Keep only well-formed subscriptions from a server response. */
+function validSubs(raw: unknown): SubscriptionView[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (s): s is SubscriptionView =>
+      typeof s === 'object' &&
+      s !== null &&
+      typeof s.id === 'string' &&
+      SUBSCRIPTION_ID.test(s.id) &&
+      typeof s.receipt === 'string' &&
+      isValidReceipt(s.receipt),
+  );
+}
+
 function remember(subs: SubscriptionView[]): void {
-  serverSync.subscriptions = Object.fromEntries(subs.map((s) => [s.id, s]));
+  serverSync.subscriptions = Object.fromEntries(validSubs(subs).map((s) => [s.id, s]));
 }
 
 /** Load saved settings and start pulling. Call once after the data store is ready. */
@@ -196,10 +219,26 @@ export async function useSyncKey(rawUrl: string, key: string): Promise<boolean> 
   return Boolean(ok);
 }
 
-/** Delete the server account and everything it tracks, and stop syncing. */
-export async function disableServerSync(): Promise<void> {
+/**
+ * Delete the server account and everything it tracks, and stop syncing. Returns false, and keeps
+ * the sync key so the user can try again, when the server did not confirm the deletion.
+ */
+export async function disableServerSync({ quiet = false } = {}): Promise<boolean> {
   if (serverSync.token) {
-    await run(() => api('/v1/account', { method: 'DELETE' })).catch(() => undefined);
+    const deleted = await run(async () => {
+      try {
+        await api('/v1/account', { method: 'DELETE' });
+      } catch (e) {
+        // 401: the account is already gone.
+        if (!(e instanceof SyncError && e.status === 401)) throw e;
+      }
+      return true;
+    });
+    if (!deleted) {
+      serverSync.error = `The server did not delete your data. ${serverSync.error} Try again when you are online.`;
+      if (!quiet) showSnackbar('Server sync is still on. The server did not delete your data.');
+      return false;
+    }
   }
   serverSync.token = '';
   serverSync.cursor = 0;
@@ -207,7 +246,9 @@ export async function disableServerSync(): Promise<void> {
   serverSync.environment = '';
   clearTracking();
   await persist();
-  showSnackbar('Server sync is off. The server deleted your receipt numbers and results.');
+  if (!quiet)
+    showSnackbar('Server sync is off. The server deleted your receipt numbers and results.');
+  return true;
 }
 
 function clearTracking(): void {
@@ -303,6 +344,20 @@ export async function refreshCase(caseId: string): Promise<void> {
 }
 
 /** Fetch results that changed since the last pull and merge them. */
+/** Stop tracking receipts whose case was deleted on this device, so they stop using quota. */
+async function dropOrphans(): Promise<void> {
+  const local = new Set(store.data.cases.map((c) => c.receipt));
+  for (const sub of Object.values(serverSync.subscriptions)) {
+    if (local.has(sub.receipt)) continue;
+    try {
+      await api(`/v1/subscriptions/${encodeURIComponent(sub.id)}`, { method: 'DELETE' });
+      delete serverSync.subscriptions[sub.id];
+    } catch {
+      // Tried again on the next pull.
+    }
+  }
+}
+
 export async function pull({ quiet }: { quiet: boolean }): Promise<void> {
   if (!syncEnabled() || serverSync.busy) return;
   await run(async () => {
@@ -312,7 +367,8 @@ export async function pull({ quiet }: { quiet: boolean }): Promise<void> {
       subscriptions: SubscriptionView[];
     }>(`/v1/updates?after=${serverSync.cursor}`);
     remember(res.subscriptions);
-    const summary = mergeFromServer(res.items.map((i) => i.case));
+    const summary = mergeFromServer(Array.isArray(res.items) ? res.items.map((i) => i?.case) : []);
+    await dropOrphans();
     serverSync.cursor = res.cursor;
     serverSync.lastPullAt = nowInstant();
     await persist();
