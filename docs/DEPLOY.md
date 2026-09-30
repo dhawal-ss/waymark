@@ -176,6 +176,45 @@ ADMIN_TOKEN=... pnpm --filter @waymark/server forms:import ~/Downloads/file.xlsx
 Without `--server` the script prints the normalized JSON so you can review it first. Use `--sheet`
 when the form table is not on the first sheet. Values USCIS withholds ("D") are stored as empty.
 
+### News feed
+
+The daily job also collects official news for the app's Updates feed. It reads two kinds of source:
+
+- **Federal Register**: documents that USCIS publishes (rules, proposed rules, notices), from the
+  Federal Register API. On by default; no setup.
+- **USCIS feeds**: RSS or Atom feeds you choose. None are listed by default because Waymark does not
+  guess feed addresses. USCIS lists its feeds on its newsroom pages (news releases, alerts, and forms
+  updates); copy the RSS links from those pages into `USCIS_FEED_URLS` in `wrangler.toml`, comma
+  separated, then push or run `pnpm deploy`. Only https addresses on `uscis.gov` are accepted; others
+  are ignored.
+
+| Variable                    | Default                           | Meaning                                                                    |
+| --------------------------- | --------------------------------- | -------------------------------------------------------------------------- |
+| `NEWS_ENABLED`              | follows `PUBLIC_DATA_ENABLED`     | `"false"` turns the news job off; `"true"` keeps it on without public data |
+| `FEDERAL_REGISTER_BASE_URL` | `https://www.federalregister.gov` | Must be https                                                              |
+| `USCIS_FEED_URLS`           | empty                             | USCIS feed addresses, comma separated                                      |
+
+Apply the new migration before deploying (`pnpm db:migrate:remote`; the GitHub Actions deploy does it
+for you). Then check the sources on your own machine and run the job once:
+
+```sh
+USCIS_FEED_URLS="https://www.uscis.gov/..." pnpm --filter @waymark/server data:check
+curl -X POST "$SERVER/v1/admin/run?job=news" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl "$SERVER/v1/public/news?limit=5"
+```
+
+`data:check` prints how many items each source gives, a sample, and anything it skipped. The run
+returns `sources`, `failed`, `items`, `added`, `skipped`, and one line per failed source in `errors`.
+
+- A source that fails is reported and does not stop the others. `GET /v1/public/status` shows an
+  error for `news` only when every source failed.
+- Each item keeps its title, a summary cut from the source text (never written by Waymark), its link
+  and date, a category chosen by fixed keyword rules, and the form numbers found in the title or
+  summary. The newest 500 items by publication date are kept.
+- `GET /v1/public/news` takes `limit` (1 to 100, default 40), `before` (a date, exclusive),
+  `category`, and `form` (for example `I-485`), and answers `{ "items": [...] }` newest first.
+  `before` pages by date, so items that share the last date of a page can fall between pages.
+
 ### Run a job now
 
 ```sh
