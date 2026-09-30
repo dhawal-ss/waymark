@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { open, PAGES } from './helpers';
+import { loadExample, open, PAGES } from './helpers';
 
 test('shows the footer notice on every page', async ({ page }) => {
   for (const p of PAGES) {
@@ -70,4 +70,16 @@ test('makes no requests to other origins', async ({ page, baseURL }) => {
 test('falls back to Cases for unknown routes', async ({ page }) => {
   await page.goto('./#/nope');
   await expect(page.locator('main h1')).toHaveText('Cases');
+});
+
+test('runs under the content security policy without violations', async ({ page }) => {
+  const violations: string[] = [];
+  page.on('console', (m) => {
+    if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+  });
+  await page.goto('./#/cases');
+  await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1);
+  await loadExample(page);
+  for (const p of PAGES) await open(page, p.path);
+  expect(violations).toEqual([]);
 });

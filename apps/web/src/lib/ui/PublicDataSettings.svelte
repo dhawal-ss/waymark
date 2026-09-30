@@ -1,16 +1,13 @@
 <script lang="ts">
   import { relativeTime } from '../format';
   import { fetchStatus, type DatasetRun } from '../publicData';
-  import { serverSync, setServerUrl } from '../serverSync.svelte';
+  import { serverAddress, serverSync, setServerUrl } from '../serverSync.svelte';
   import { store } from '../stores/data.svelte';
   import { updatePrefs } from '../stores/prefs.svelte';
   import Switch from './Switch.svelte';
-  import TextField from './TextField.svelte';
 
-  let url = $state(serverSync.url);
   let runs = $state<DatasetRun[]>([]);
   let statusError = $state('');
-  let addressError = $state('');
   const on = $derived(store.data.prefs.publicData);
 
   const NAMES: Record<string, string> = {
@@ -31,29 +28,17 @@
   });
 
   async function toggle(next: boolean) {
-    if (next && !serverSync.url && !(await setServerUrl(url))) {
-      addressError = 'Enter the server address starting with https://.';
-      return;
-    }
-    addressError = '';
+    if (next && !serverSync.url && !(await setServerUrl(serverAddress.draft))) return;
     updatePrefs({ publicData: next });
   }
 </script>
 
 <section class="group" aria-labelledby="public-title">
   <h2 id="public-title" class="t-title">Public data</h2>
-  {#if !serverSync.url}
-    <TextField
-      label="Sync server address"
-      bind:value={url}
-      type="url"
-      inputmode="url"
-      autocomplete="off"
-      spellcheck={false}
-      supporting="Public data comes from a Waymark sync server. No account is needed."
-    />
-  {/if}
-  {#key `${on}-${serverSync.url}-${addressError}`}
+  <p class="t-small muted">
+    Public data comes from the sync server address under Server sync. No account is needed.
+  </p>
+  {#key `${on}-${serverSync.url}-${serverAddress.error}`}
     <Switch
       label="Load public data from the sync server"
       description="Processing times from egov.uscis.gov, Visa Bulletin cutoffs from travel.state.gov, and quarterly USCIS form data. Requests name only the form or category you view, never receipt numbers."
@@ -81,7 +66,9 @@
       </p>
     {/if}
   {/if}
-  {#if addressError}<p class="alert" role="alert">{addressError}</p>{/if}
+  {#if serverAddress.error && !serverSync.url}
+    <p class="alert" role="alert">{serverAddress.error} Enter it under Server sync.</p>
+  {/if}
 </section>
 
 <style>

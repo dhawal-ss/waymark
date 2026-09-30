@@ -18,6 +18,8 @@
   .receipt {
     font-size: 0.875em;
     letter-spacing: 0.02em;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    /* Slashed zero, so 0 and O differ when reading a receipt aloud. */
+    font-feature-settings: 'zero' 1;
   }
 </style>

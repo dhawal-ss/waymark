@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reserveFloatingSpace } from './floating';
   import { tick } from 'svelte';
   import Icon from './Icon.svelte';
   import type { IconName } from './icons';
@@ -19,6 +20,8 @@
   }
 
   let { items, label, fixed = true }: Props = $props();
+
+  $effect(() => (fixed ? reserveFloatingSpace() : undefined));
 
   let open = $state(false);
   let fab: HTMLButtonElement | undefined = $state();
@@ -115,6 +118,8 @@
     position: fixed;
     right: max(16px, env(safe-area-inset-right));
     bottom: calc(var(--nav-bar-height) + 16px + env(safe-area-inset-bottom));
+    transform: translateY(calc(-1 * var(--snackbar-offset, 0px)));
+    transition: transform var(--spring-default-spatial-duration) var(--spring-default-spatial);
   }
   @media (min-width: 840px) {
     .fab-menu.fixed {
@@ -162,9 +167,11 @@
     opacity: 0;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  .items button:hover::after,
-  .fab:hover::after {
-    opacity: var(--state-hover);
+  @media (hover: hover) {
+    .items button:hover::after,
+    .fab:hover::after {
+      opacity: var(--state-hover);
+    }
   }
   .items button:active,
   .fab:active {

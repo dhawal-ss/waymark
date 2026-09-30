@@ -114,7 +114,11 @@ export class UscisClient {
     };
   }
 
+  /** Case Status API calls made, including retries, for quota accounting. */
+  requests = 0;
+
   private request(receipt: string, token: string): Promise<Response> {
+    this.requests++;
     return this.fetcher(`${this.options.baseUrl}/case-status/${encodeURIComponent(receipt)}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });

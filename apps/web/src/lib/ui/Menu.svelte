@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import Icon from './Icon.svelte';
   import { rovingIndex } from './keys';
 
@@ -31,9 +31,39 @@
   let menu: HTMLDivElement | undefined = $state();
   let buttons: HTMLButtonElement[] = $state([]);
 
+  // Open where it fits: flip above when there is more room there, and scroll when it is still
+  // taller than the room left (the bottom nav and floating buttons count as taken).
+  let side: 'below' | 'above' = $state(untrack(() => placement));
+  let maxHeight = $state('');
+  function fit() {
+    const anchor = menu?.parentElement?.getBoundingClientRect();
+    if (!menu || !anchor) return;
+    const narrow = !matchMedia('(min-width: 840px)').matches;
+    const nav = narrow
+      ? parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--nav-bar-height'),
+        ) || 0
+      : 0;
+    const below = innerHeight - nav - anchor.bottom - 12;
+    const above = anchor.top - 12;
+    const needed = menu.scrollHeight;
+    side =
+      placement === 'above'
+        ? above >= needed || above >= below
+          ? 'above'
+          : 'below'
+        : below >= needed || below >= above
+          ? 'below'
+          : 'above';
+    maxHeight = `${Math.max(120, side === 'below' ? below : above)}px`;
+  }
+
   $effect(() => {
     if (!open) return;
-    tick().then(() => buttons.find((b) => b && !b.disabled)?.focus());
+    tick().then(() => {
+      fit();
+      buttons.find((b) => b && !b.disabled)?.focus({ preventScroll: true });
+    });
     const onPointer = (event: PointerEvent) => {
       if (menu && !menu.parentElement?.contains(event.target as Node)) onclose(false);
     };
@@ -70,7 +100,8 @@
   <div
     bind:this={menu}
     {id}
-    class="menu align-{align} {placement}"
+    class="menu align-{align} {side}"
+    style:max-height={maxHeight || null}
     role="menu"
     tabindex="-1"
     aria-label={label}
@@ -95,7 +126,9 @@
 <style>
   .menu {
     position: absolute;
-    z-index: 20;
+    z-index: 45;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     min-width: 200px;
     max-width: min(320px, calc(100vw - 32px));
     padding: 4px;
@@ -142,9 +175,13 @@
   button :global(svg) {
     color: var(--on-surface-variant);
   }
-  button:hover,
   button:focus-visible {
     background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  }
+  @media (hover: hover) {
+    button:hover {
+      background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+    }
   }
   button:focus-visible {
     outline-offset: -3px;

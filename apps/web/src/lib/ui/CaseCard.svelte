@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    closedByUscis,
     currentStatus,
     daysSinceFiling,
     lastUscisEvent,
@@ -9,7 +10,8 @@
     type Case,
     type LocalDate,
   } from '@waymark/core';
-  import { plural, relativeTime } from '../format';
+  import { formatShortDate, plural, relativeDays, relativeTime } from '../format';
+  import { store } from '../stores/data.svelte';
   import { casePath } from '../stores/router.svelte';
   import FormBadge from './FormBadge.svelte';
   import Pill from './Pill.svelte';
@@ -31,6 +33,12 @@
   const wait = $derived(waitPosition(c, today));
   const fresh = $derived(newEventCount(c));
   const last = $derived(lastUscisEvent(c));
+  // The next open deadline for this case is what matters most on the list.
+  const next = $derived(
+    store.data.deadlines
+      .filter((d) => d.caseId === c.id && !d.done)
+      .sort((a, b) => a.date.localeCompare(b.date))[0],
+  );
 </script>
 
 <a class="card tone-{tone}" href={casePath(c.id)}>
@@ -52,16 +60,23 @@
       label="Time since filing against processing time"
       valueText="{wait.elapsed} of {wait.total} days"
     />
+    <p class="t-small muted wait">
+      {wait.remaining >= 0
+        ? `${plural(wait.remaining, 'day')} left of the processing time`
+        : `${plural(-wait.remaining, 'day')} past the processing time`}
+    </p>
   {/if}
   <div class="pills">
-    <StatusPill {status} />
+    <StatusPill {status} closed={closedByUscis(c)} />
     {#if fresh > 0}<Pill label="{fresh} new" tone="new" />{/if}
     {#if c.demo}<Pill label="Demo" icon="info" />{/if}
   </div>
-  {#if last}
-    <p class="t-small muted last">
-      {last.info.label} <span class="t-mono">{last.code}</span>, {relativeTime(last.at)}
+  {#if next}
+    <p class="t-small last" class:overdue={next.date < today}>
+      {next.title}: {formatShortDate(next.date, today)}, {relativeDays(next.date, today)}
     </p>
+  {:else if last}
+    <p class="t-small muted last">Last USCIS update {relativeTime(last.at)}</p>
   {/if}
 </a>
 
@@ -80,8 +95,10 @@
       background-color var(--duration-short) var(--ease-standard),
       border-radius var(--spring-default-spatial-duration) var(--spring-default-spatial);
   }
-  .card:hover {
-    background: var(--surface-container);
+  @media (hover: hover) {
+    .card:hover {
+      background: var(--surface-container);
+    }
   }
   .card:active {
     border-radius: var(--shape-l);
@@ -119,8 +136,12 @@
     flex-wrap: wrap;
     gap: 6px;
   }
-  .last .t-mono {
-    font-size: 0.75rem;
+  .wait {
+    margin-top: -6px;
+  }
+  .overdue {
+    color: var(--error);
+    font-weight: 600;
   }
   @media (forced-colors: active) {
     .card {

@@ -71,7 +71,7 @@ async function turnOnPublicData(page: Page) {
   const section = page.locator('section', {
     has: page.getByRole('heading', { name: 'Public data' }),
   });
-  await section.getByLabel('Sync server address').fill(SYNC_URL);
+  await page.getByLabel('Sync server address').fill(SYNC_URL);
   await section.getByRole('switch', { name: 'Load public data from the sync server' }).check();
   await expect(section.getByText(/Processing times:\s*updated just now/)).toBeVisible();
 }
@@ -106,7 +106,7 @@ test('links a series to USCIS processing times and refreshes it', async ({ page 
   ).toBeVisible();
   await expect(
     page.getByText(
-      'I-485 NBC, Family-based adjustment applications: Up 1.5 months (13%) since 2026-05-01.',
+      'I-485 NBC, Family-based adjustment applications: Up 1.5 months (13%) since May 1, 2026.',
     ),
   ).toBeVisible();
   await expect(
@@ -118,7 +118,7 @@ test('links a series to USCIS processing times and refreshes it', async ({ page 
   await page.goto('./#/insights');
   await expect(
     page.getByText(
-      'I-485 NBC, Family-based adjustment applications: Up 2 months (17%) since 2026-05-01.',
+      'I-485 NBC, Family-based adjustment applications: Up 2 months (17%) since May 1, 2026.',
     ),
   ).toBeVisible();
 
@@ -189,11 +189,15 @@ test('rejects an insecure public data address and leaves the switch off', async 
   const section = page.locator('section', {
     has: page.getByRole('heading', { name: 'Public data' }),
   });
-  await section.getByLabel('Sync server address').fill('http://example.org');
+  await page.getByLabel('Sync server address').fill('http://example.org');
   await section.getByRole('switch', { name: 'Load public data from the sync server' }).click();
   await expect(section.getByRole('alert')).toHaveText(
-    'Enter the server address starting with https://.',
+    'Enter the server address starting with https://. Enter it under Server sync.',
   );
+  // The error also shows on the address field itself.
+  await expect(
+    page.getByText('Enter the server address starting with https://.').first(),
+  ).toBeVisible();
   await expect(
     section.getByRole('switch', { name: 'Load public data from the sync server' }),
   ).not.toBeChecked();

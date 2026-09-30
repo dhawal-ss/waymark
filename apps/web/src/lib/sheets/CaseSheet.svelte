@@ -10,7 +10,8 @@
     type FormType,
     type StatusKey,
   } from '@waymark/core';
-  import { addCase, todayLocal, updateCase } from '../actions';
+  import { tick } from 'svelte';
+  import { addCase, deleteCase, todayLocal, updateCase } from '../actions';
   import { store } from '../stores/data.svelte';
   import { casePath, navigate } from '../stores/router.svelte';
   import Button from '../ui/Button.svelte';
@@ -60,7 +61,13 @@
   function submit(event: SubmitEvent) {
     event.preventDefault();
     submitted = true;
-    if (!valid || !receiptCheck.ok) return;
+    if (!valid || !receiptCheck.ok) {
+      // Take the user to the first field that needs fixing.
+      void tick().then(() =>
+        document.querySelector<HTMLElement>('#case-form [aria-invalid="true"]')?.focus(),
+      );
+      return;
+    }
     if (existing) {
       updateCase(
         existing.id,
@@ -94,6 +101,8 @@
     <TextField
       label="Receipt number"
       bind:value={receipt}
+      data-autofocus={existing ? undefined : true}
+      enterkeyhint="next"
       mono
       autocomplete="off"
       autocapitalize="characters"
@@ -142,6 +151,19 @@
     />
   </form>
   {#snippet actions()}
+    {#if existing}
+      <Button
+        variant="text"
+        icon="delete"
+        class="delete"
+        onclick={() => {
+          const id = existing.id;
+          onclose();
+          deleteCase(id);
+          navigate('/cases');
+        }}>Delete case</Button
+      >
+    {/if}
     <Button variant="text" onclick={onclose}>Cancel</Button>
     <Button type="submit" form="case-form">{existing ? 'Save changes' : 'Add case'}</Button>
   {/snippet}
@@ -151,5 +173,10 @@
   .form {
     display: grid;
     gap: 16px;
+  }
+  /* Kept apart from Save so it is not tapped by mistake. */
+  :global(.btn.delete) {
+    margin-inline-end: auto;
+    color: var(--error);
   }
 </style>

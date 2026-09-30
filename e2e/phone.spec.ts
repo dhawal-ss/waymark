@@ -1,16 +1,46 @@
 import { readFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { loadExample, open, snackbar } from './helpers';
 
+async function shareToApp(page: Page, fields: Record<string, string | { file: string }>) {
+  await page.goto('./#/cases');
+  // The share target is handled by the service worker, as on an installed Android app.
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)), {
+      timeout: 15_000,
+    })
+    .toBe(true);
+  await page.evaluate(async (entries) => {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(entries)) {
+      if (typeof value === 'string') form.set(key, value);
+      else form.set(key, new File([value.file], 'case.json', { type: 'application/json' }));
+    }
+    await fetch('./share-target', { method: 'POST', body: form, redirect: 'manual' });
+  }, fields);
+  await page.goto('./?action=shared');
+}
+
+const SHARED_JSON =
+  '{"receiptNumber":"IOE0999000444","formType":"I131","events":[{"eventCode":"IAF","createdAtTimestamp":"2026-01-02T10:00:00Z"}]}';
+
 test('opens shared text in the import sheet for review', async ({ page }) => {
-  const json =
-    '{"receiptNumber":"IOE0999000444","formType":"I131","events":[{"eventCode":"IAF","createdAtTimestamp":"2026-01-02T10:00:00Z"}]}';
-  await page.goto(`./?shared_text=${encodeURIComponent(json)}#/cases`);
+  await shareToApp(page, { shared_text: SHARED_JSON });
   const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
-  await expect(dialog.getByLabel('Case JSON')).toHaveValue(json);
+  await expect(dialog.getByLabel('Case JSON')).toHaveValue(SHARED_JSON);
+  await expect(dialog.getByText('Check the shared text, then choose Import JSON.')).toBeVisible();
   expect(new URL(page.url()).search).toBe('');
   await dialog.getByRole('button', { name: 'Import JSON' }).click();
   await expect(snackbar(page, 'Added case IOE0999000444.')).toBeVisible();
+});
+
+test('opens a shared JSON file in the import sheet', async ({ page }) => {
+  await shareToApp(page, { shared_file: { file: SHARED_JSON } });
+  const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
+  await expect(dialog.getByLabel('Case JSON')).toHaveValue(SHARED_JSON);
+  // The shared text is read once.
+  await page.goto('./?action=shared');
+  await expect(dialog.getByRole('alert')).toContainText('Nothing was shared.');
 });
 
 test('app shortcuts open the add case and import sheets', async ({ page }) => {

@@ -8,8 +8,11 @@ the design.
 
 ## Privacy
 
-- All data is stored in your browser (IndexedDB) on this device. There is no account and no
-  server in the current build. Export, import, and delete everything are in Settings.
+- All data is stored in your browser (IndexedDB) on this device. There is no account, and the
+  optional sync server is off by default. Export, share a backup, import, and delete everything
+  are in Settings; the Cases page reminds you to back up after 30 days.
+- Production builds ship a strict Content Security Policy; shared case JSON arrives by POST to
+  the service worker and never appears in a URL.
 - No analytics, trackers, or third-party scripts. Fonts are self-hosted.
 - Waymark never signs in to USCIS for you and never stores USCIS credentials.
 - Not legal advice. Not affiliated with USCIS.
@@ -26,16 +29,18 @@ pnpm build && pnpm size
 pnpm test:e2e     # Playwright and axe at 360px and 1280px
 ```
 
-The design system reference lives in the app at Settings, then Design system.
+The design system reference is at `#/settings/design` (linked from Settings in development
+builds). To try the app on a phone, see [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Syncing with USCIS
 
 USCIS does not let other sites read a signed-in account, so sync is manual:
 
-1. On a case, choose Sync. Waymark opens
+1. On a case, choose Open case JSON. Waymark opens
    `https://my.uscis.gov/account/case-service/api/cases/{RECEIPT}` in a new tab.
 2. Sign in if asked, select all, and copy the page.
-3. Return to Waymark and choose Import in the prompt, or use Paste JSON or a saved file.
+3. Return to Waymark and choose Import copied JSON, or use Paste JSON or a saved file. On
+   Android with the app installed, you can also share the text or a saved JSON file to Waymark.
 
 Waymark keeps only events, notices, dates, form type, and channel. Event code meanings are
 community documented and shown as unofficial.

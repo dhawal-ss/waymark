@@ -25,7 +25,7 @@
 <PageHeader title="Updates" />
 
 <p class="muted intro">
-  Official sources to check for changes. Waymark does not fetch them yet; mark each one after you
+  Official sources to check for changes. Waymark does not fetch these pages; mark each one after you
   read it to track when you last looked.
 </p>
 

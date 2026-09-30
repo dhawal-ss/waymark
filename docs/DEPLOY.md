@@ -73,7 +73,14 @@ VITE_SYNC_URL=https://waymark-sync.<your-subdomain>.workers.dev pnpm build
 - Each receipt is checked every `POLL_INTERVAL_HOURS` (default 12), so about 450 receipts fit in
   the daily quota. `MAX_RECEIPTS_PER_ACCOUNT` (default 10) and `MAX_ACCOUNTS` (default 500) cap
   usage. Receipts that keep failing back off to at most 16 times the interval.
-- Manual refresh is limited to once per hour per receipt.
+- Manual refresh is limited to once per hour per receipt, and the limit holds when a receipt is
+  deleted and added again. Each account gets 20 checks outside the schedule (new receipts and
+  refreshes) per UTC day. Healthy receipts are checked before failing ones.
+- New accounts are rate limited per client IP by the `ACCOUNT_LIMITER` binding in
+  `wrangler.toml` (5 per minute). The IP is used only for that check and is never stored. Remove
+  the `[[ratelimits]]` block if your account does not offer Workers Rate Limiting.
+- Errors shown to users are fixed messages. USCIS response text and credential problems go only
+  to the Worker logs.
 
 ## What the server stores
 
@@ -83,7 +90,8 @@ VITE_SYNC_URL=https://waymark-sync.<your-subdomain>.workers.dev pnpm build
 | `receipts`      | HMAC of the receipt (lookup), AES-GCM encrypted receipt, check times, errors   |
 | `subscriptions` | Which account tracks which receipt                                             |
 | `snapshots`     | Encrypted normalized result, stored only when it changes (last 50 per receipt) |
-| `usage`         | API calls per UTC day                                                          |
+| `usage`         | API calls per UTC day, and each account's on-demand checks for the day         |
+| `recent_checks` | HMAC and last check time of receipts nobody tracks, kept for the cooldown only |
 
 No names, emails, notes, or USCIS account credentials. Accounts unused for 180 days are deleted
 with their subscriptions; receipts nobody tracks are deleted with their snapshots.

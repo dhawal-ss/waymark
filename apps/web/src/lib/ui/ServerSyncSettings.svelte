@@ -5,6 +5,7 @@
     disableServerSync,
     enableServerSync,
     pull,
+    serverAddress,
     serverSync,
     syncEnabled,
     useSyncKey,
@@ -14,7 +15,6 @@
   import Icon from './Icon.svelte';
   import TextField from './TextField.svelte';
 
-  let url = $state(serverSync.url);
   let key = $state('');
   const enabled = $derived(syncEnabled());
   const tracked = $derived(store.data.cases.filter((c) => c.serverTracking).length);
@@ -32,18 +32,19 @@
     </p>
     <TextField
       label="Sync server address"
-      bind:value={url}
+      bind:value={serverAddress.draft}
       type="url"
       inputmode="url"
       autocomplete="off"
       spellcheck={false}
-      supporting="The address of a Waymark sync server, starting with https://."
+      error={serverAddress.error || undefined}
+      supporting="The address of a Waymark sync server, starting with https://. Public data below uses it too."
     />
     <div class="actions">
       <Button
         icon="sync"
-        disabled={serverSync.busy || !url.trim()}
-        onclick={() => enableServerSync(url)}>Turn on server sync</Button
+        disabled={serverSync.busy || !serverAddress.draft.trim()}
+        onclick={() => enableServerSync(serverAddress.draft)}>Turn on server sync</Button
       >
     </div>
     <details>
@@ -53,8 +54,8 @@
         <div>
           <Button
             variant="tonal"
-            disabled={serverSync.busy || !key.trim() || !url.trim()}
-            onclick={() => useSyncKey(url, key)}>Use sync key</Button
+            disabled={serverSync.busy || !key.trim() || !serverAddress.draft.trim()}
+            onclick={() => useSyncKey(serverAddress.draft, key)}>Use sync key</Button
           >
         </div>
       </div>

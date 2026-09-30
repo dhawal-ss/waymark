@@ -1,9 +1,9 @@
 <script lang="ts">
   import { SEED_PRESETS, type ThemeMode } from '@waymark/theme';
-  import { buildExport, today } from '@waymark/core';
   import { deleteEverything, hasData, importDataFile } from '../lib/actions';
-  import { flushSaves, nowInstant, store } from '../lib/stores/data.svelte';
-  import { showSnackbar } from '../lib/stores/snackbar.svelte';
+  import { backup, canShareFiles, exportBackup } from '../lib/backup.svelte';
+  import { relativeTime } from '../lib/format';
+  import { store } from '../lib/stores/data.svelte';
   import Button from '../lib/ui/Button.svelte';
   import Select from '../lib/ui/Select.svelte';
   import { updatePrefs } from '../lib/stores/prefs.svelte';
@@ -18,6 +18,7 @@
   import Switch from '../lib/ui/Switch.svelte';
 
   const prefs = $derived(store.data.prefs);
+  const shareFiles = canShareFiles();
 
   let confirmingDelete = $state(false);
   async function confirmDelete() {
@@ -38,28 +39,26 @@
       return [];
     }
   })();
+  // US zones first: most cases are handled on US time.
+  const US_ZONES: [string, string][] = [
+    ['America/New_York', 'US Eastern'],
+    ['America/Chicago', 'US Central'],
+    ['America/Denver', 'US Mountain'],
+    ['America/Phoenix', 'US Arizona'],
+    ['America/Los_Angeles', 'US Pacific'],
+    ['America/Anchorage', 'US Alaska'],
+    ['Pacific/Honolulu', 'US Hawaii'],
+    ['America/Puerto_Rico', 'Puerto Rico'],
+  ];
+  const usSet = new Set(US_ZONES.map(([z]) => z));
   const zoneOptions = [
-    { value: '', label: `Device time zone (${deviceZone})` },
-    ...zones.map((z) => ({ value: z, label: z.replace(/_/g, ' ') })),
+    { value: '', label: `Device time zone (${deviceZone.replace(/_/g, ' ')})` },
+    ...US_ZONES.map(([z, name]) => ({ value: z, label: `${name} (${z.replace(/_/g, ' ')})` })),
+    ...zones.filter((z) => !usSet.has(z)).map((z) => ({ value: z, label: z.replace(/_/g, ' ') })),
   ];
 
   let fileInput: HTMLInputElement | undefined = $state();
   let importError = $state('');
-
-  async function exportData() {
-    await flushSaves();
-    const file = buildExport($state.snapshot(store.data), nowInstant());
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `waymark-export-${today()}.json`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showSnackbar('Exported your data as a JSON file.');
-  }
 
   async function onImportFile(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -168,11 +167,23 @@
   <h2 id="data-title" class="t-title">Data</h2>
   <p class="muted t-small">
     Everything is stored in this browser on this device. Export a file to keep a backup or move to
-    another device.
+    another device. Share backup can save it to Google Drive or Files.
+  </p>
+  <p class="t-small">
+    {#if backup.lastAt}
+      Last backup {relativeTime(backup.lastAt)}.
+    {:else}
+      No backup yet.
+    {/if}
   </p>
   {#if importError}<p class="alert" role="alert">{importError}</p>{/if}
   <div class="actions">
-    <Button variant="tonal" icon="download" onclick={exportData}>Export data</Button>
+    <Button variant="tonal" icon="download" onclick={() => exportBackup()}>Export data</Button>
+    {#if shareFiles}
+      <Button variant="outlined" icon="share" onclick={() => exportBackup({ share: true })}
+        >Share backup</Button
+      >
+    {/if}
     <Button variant="outlined" icon="upload" onclick={() => fileInput?.click()}>Import data</Button>
     <input
       bind:this={fileInput}
@@ -227,17 +238,20 @@
 
 <InstallSettings />
 
-<section class="group" aria-labelledby="about-title">
-  <h2 id="about-title" class="t-title">Reference</h2>
-  <a class="row-link" href="#/settings/design">
-    <Icon name="palette" />
-    <span class="text">
-      <span class="t-body">Design system</span>
-      <span class="t-small muted">Color roles, type, shape, motion, and components</span>
-    </span>
-    <Icon name="chevron_right" />
-  </a>
-</section>
+<!-- The design system page is for development; the route still works in production builds. -->
+{#if import.meta.env.DEV}
+  <section class="group" aria-labelledby="about-title">
+    <h2 id="about-title" class="t-title">Reference</h2>
+    <a class="row-link" href="#/settings/design">
+      <Icon name="palette" />
+      <span class="text">
+        <span class="t-body">Design system</span>
+        <span class="t-small muted">Color roles, type, shape, motion, and components</span>
+      </span>
+      <Icon name="chevron_right" />
+    </a>
+  </section>
+{/if}
 
 <style>
   .group {
@@ -266,8 +280,10 @@
     color: var(--on-surface);
     text-decoration: none;
   }
-  .row-link:hover {
-    background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  @media (hover: hover) {
+    .row-link:hover {
+      background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+    }
   }
   .text {
     flex: 1;

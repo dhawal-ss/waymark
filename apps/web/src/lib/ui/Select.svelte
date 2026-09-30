@@ -63,8 +63,10 @@
     appearance: none;
     cursor: pointer;
   }
-  select:hover {
-    border-color: var(--on-surface);
+  @media (hover: hover) {
+    select:hover {
+      border-color: var(--on-surface);
+    }
   }
   select:focus {
     outline: none;

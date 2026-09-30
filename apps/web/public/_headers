@@ -1,0 +1,7 @@
+# Response headers for Cloudflare Pages (and other hosts that read _headers). They cover what a
+# meta tag cannot: framing, content sniffing, and the referrer.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

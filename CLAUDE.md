@@ -51,7 +51,10 @@ apps/web         Svelte 5 + Vite PWA
   src/lib/db.ts    IndexedDB schema versions and upgrades
   src/lib/stores   data (app data, persistence, undo), prefs, router, snackbar, ui (sheets)
   src/lib/actions.ts  Domain actions; every change goes through mutate()
-  src/lib/sync.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
+  src/lib/sync.svelte.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
+  src/lib/launch.ts, install.svelte.ts, backup.svelte.ts  Share target and shortcuts, install,
+                   backups and the backup reminder
+  public/share-target.js  Service worker handler for the POST share target (imported by Workbox)
   src/lib/serverSync.svelte.ts  Optional server sync client (off by default)
   src/lib/publicData.ts  Public data client (off by default); linked series and cutoffs
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
@@ -60,7 +63,7 @@ apps/web         Svelte 5 + Vite PWA
   src/styles       fonts.css, tokens.css (shape, type, tones), base.css
 e2e/             Playwright tests with axe, run at 360px and 1280px
 scripts/         setup.sh, check-emdash, check-bundle-size, icons, render-icons
-docs/            ROADMAP.md, ARCHITECTURE.md, DEPLOY.md
+docs/            ROADMAP.md, ARCHITECTURE.md, DEPLOY.md, HOSTING.md (phone testing)
 ```
 
 ## Commands
@@ -93,7 +96,12 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
 - Structural IndexedDB changes: append a step to `UPGRADES` in `lib/db.ts` and bump `DB_VERSION`.
   Data shape changes: add `MIGRATIONS[n]` in `packages/core/src/transfer.ts` and bump
   `SCHEMA_VERSION`. Never edit a shipped step.
-- Untrusted input (imports, stored data, USCIS JSON) goes through `sanitize.ts` or `elis.ts`.
+- Untrusted input (imports, stored data, USCIS JSON, sync server responses) goes through
+  `sanitize.ts` (`sanitizeData`, `sanitizeParsedCase`) or `elis.ts`. Links from the server are
+  shown only when they point to an official domain (`officialUrl`).
+- Production builds add a Content Security Policy (vite.config.ts). New inline scripts are hashed
+  automatically; never add third-party origins.
+- Hover styles go inside `@media (hover: hover)` so taps do not leave a tint on phones.
 - Pages render after the data store is ready, so components may seed local form state from it.
 - Dates are local `YYYY-MM-DD` strings; do arithmetic with `toEpochDay` from `@waymark/core`.
   Convert USCIS instants with `localDateOf(instant, tz())` so the time zone setting applies.

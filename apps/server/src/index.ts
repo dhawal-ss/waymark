@@ -37,6 +37,7 @@ function depsFor(env: Env): Promise<AppDeps> {
     config,
     now: () => new Date(),
     sleep: (ms: number) => new Promise((r) => setTimeout(r, ms)),
+    accountLimiter: env.ACCOUNT_LIMITER,
   }));
 }
 

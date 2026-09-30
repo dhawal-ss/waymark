@@ -5,6 +5,7 @@
   import { initData, store, tz } from './lib/stores/data.svelte';
   import { refreshClock, startClock } from './lib/stores/clock.svelte';
   import { startInstallWatch } from './lib/install.svelte';
+  import { initBackup } from './lib/backup.svelte';
   import { handleLaunch } from './lib/launch';
   import { router, startRouter } from './lib/stores/router.svelte';
   import AppNav from './lib/ui/AppNav.svelte';
@@ -42,7 +43,8 @@
     void initData().then(() => {
       startClock(() => tz());
       startInstallWatch();
-      handleLaunch();
+      void initBackup();
+      void handleLaunch();
       return initServerSync();
     });
   });
@@ -160,7 +162,9 @@
   }
   footer {
     padding-top: 16px;
-    padding-bottom: calc(var(--nav-bar-height) + 16px + env(safe-area-inset-bottom));
+    padding-bottom: calc(
+      var(--nav-bar-height) + 16px + var(--floating-space, 0px) + env(safe-area-inset-bottom)
+    );
   }
   @media (min-width: 600px) {
     :global(:root) {
@@ -178,7 +182,7 @@
       min-height: calc(100dvh - 56px);
     }
     footer {
-      padding-bottom: 24px;
+      padding-bottom: calc(24px + var(--floating-space, 0px));
     }
   }
   .loading {

@@ -85,8 +85,10 @@
     opacity: 0;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  input:hover::before {
-    background: var(--on-surface-variant);
+  @media (hover: hover) {
+    input:hover::before {
+      background: var(--on-surface-variant);
+    }
   }
   input:active::before {
     --thumb: 28px;

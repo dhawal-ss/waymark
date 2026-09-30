@@ -11,6 +11,13 @@ export const caseJsonUrl = (receipt: string): string =>
 const PENDING_MS = 30 * 60 * 1000;
 let pending: { caseId?: string; at: number } | null = null;
 
+/** The case whose JSON was opened in the last 30 minutes; its page offers Import copied JSON. */
+export const syncWaiting = $state({ caseId: '', until: 0 });
+
+export function isWaitingFor(caseId: string): boolean {
+  return syncWaiting.caseId === caseId && Date.now() < syncWaiting.until;
+}
+
 function onVisible(): void {
   if (document.visibilityState !== 'visible' || !pending) return;
   document.removeEventListener('visibilitychange', onVisible);
@@ -27,6 +34,8 @@ function onVisible(): void {
 /** Open the case JSON in a new tab and offer to import when the user comes back. */
 export function startSync(receipt: string, caseId?: string): void {
   pending = { caseId, at: Date.now() };
+  syncWaiting.caseId = caseId ?? '';
+  syncWaiting.until = Date.now() + PENDING_MS;
   document.removeEventListener('visibilitychange', onVisible);
   document.addEventListener('visibilitychange', onVisible);
   window.open(caseJsonUrl(receipt), '_blank', 'noopener,noreferrer');
@@ -57,4 +66,5 @@ export async function importFromClipboard(caseId?: string): Promise<void> {
   }
   const result = importUscis(text);
   if (!result.ok) openSheet({ kind: 'import', caseId, message: result.message });
+  else syncWaiting.caseId = '';
 }

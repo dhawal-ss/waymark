@@ -81,8 +81,10 @@
     pointer-events: none;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  .icon-btn:hover::after {
-    opacity: var(--state-hover);
+  @media (hover: hover) {
+    .icon-btn:hover::after {
+      opacity: var(--state-hover);
+    }
   }
   .icon-btn:focus-visible::after,
   .icon-btn:active::after {

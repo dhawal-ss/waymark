@@ -26,7 +26,7 @@ shell, design system components, style guide page, PWA.
       example data labeled demo, v0.2 data offer
 - [x] Case detail: tinted hero, split button with quick statuses, USCIS data card, stats, milestone
       track, meaning and next cards, notices, where you sit, merged timeline, deadlines, autosaving
-      notes, floating toolbar (edit, add deadline, copy summary, delete)
+      notes, floating toolbar (edit, add deadline, share summary; delete is in the edit sheet)
 - [x] Sync flow: open the JSON tab, snackbar on return, clipboard import, paste and file fallback
       with plain errors
 - [x] Insights: wait bars, processing time series (chips, range, chart, table, change summary, add
@@ -43,7 +43,8 @@ Known limits:
 - Clipboard import depends on the browser: Chromium asks for permission, Safari and Firefox show a
   paste prompt. The paste sheet always works.
 - End-to-end tests run in Chromium only.
-- Delete everything keeps display settings (theme, color, contrast, masking, time zone).
+- Delete everything keeps display settings (theme, color, contrast, masking, time zone) and the
+  sync server address.
 
 ## Phase 3: official sync (done, in review)
 
@@ -92,6 +93,69 @@ Not done, needs you:
   because this container cannot reach uscis.gov or travel.state.gov.
 - Choose processing time targets (form, office, subtype codes) and import the quarterly form data
   files you want (docs/DEPLOY.md).
+
+## Phone readiness and audit fixes (done, in review)
+
+Android features:
+
+- [x] Install on the home screen, from Settings or a one-time card on Cases.
+- [x] Share target: share copied case JSON, or a saved JSON file, from Chrome to Waymark. It
+      arrives by POST to the service worker, so the case data never appears in a URL.
+- [x] App shortcuts: New case and Import USCIS JSON.
+- [x] Calendar: an .ics export for deadlines, plus an Open in Google Calendar link on each
+      deadline.
+- [x] Appointments from notices can be added as deadlines.
+- [x] Copy receipt. Share summary uses the system share sheet.
+- [x] Backups: share a backup file to Drive or Files, and a reminder after 30 days.
+
+Case tracking:
+
+- [x] Quick statuses log today at once, with Undo.
+- [x] Evidence requests and intents to deny ask for a response due date and add a deadline.
+- [x] Cases can be searched. Closed cases are grouped at the end, including cases USCIS closed
+      without a decision.
+- [x] The summary leads with new USCIS events and overdue deadlines. Cards show each case's next
+      deadline.
+- [x] Manual sync keeps an Import copied JSON button on the case for 30 minutes.
+
+Reliability:
+
+- [x] Undo reverts only its own action; later changes are kept.
+- [x] Data that fails to load is never saved over.
+- [x] Server responses are validated like imports. Imports get fresh ids when ids repeat, text
+      length caps, and duplicate events removed.
+- [x] Official status text: expedite, fee waiver, and reschedule requests no longer change the
+      case status.
+- [x] Mixing the USCIS JSON and the Case Status API no longer flags the whole history as new.
+- [x] Delete everything asks for confirmation, removes the v0.2 copy, and reports when the server
+      could not delete its data.
+
+Mobile layout:
+
+- [x] Menus fit the screen.
+- [x] The snackbar moves floating buttons up instead of covering them.
+- [x] The footer stays clear of floating buttons.
+- [x] The keyboard resizes the page, so sheet actions stay reachable.
+- [x] Hover tints apply only on devices that can hover.
+- [x] Receipts use a slashed zero and do not break across lines.
+
+Server:
+
+- [x] Backoff happens in SQL, and healthy receipts are checked before failing ones.
+- [x] One bad row no longer stops polling.
+- [x] The refresh cooldown survives deleting a receipt and adding it again.
+- [x] The receipt limit is atomic.
+- [x] Each account gets a daily budget of on-demand checks.
+- [x] Optional rate limiting on account creation.
+- [x] Account responses are sent with `no-store`.
+- [x] Only fixed error messages are stored.
+- [x] Subscribers do not see checks made for other accounts.
+- [x] Retries count against the quota.
+
+Web:
+
+- [x] Production builds ship a Content Security Policy with hashes of the inline scripts.
+- [x] An opt-in GitHub Pages deploy (docs/HOSTING.md).
 
 ## Phase 5: updates and alerts
 

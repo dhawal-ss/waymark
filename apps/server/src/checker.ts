@@ -23,6 +23,9 @@ export type CheckOutcome =
 
 export const utcDay = (d: Date): string => d.toISOString().slice(0, 10);
 
+export const UPSTREAM_UNAVAILABLE =
+  'The sync server cannot reach the USCIS API right now. Try again later.';
+
 /** Stable text for hashing: key order fixed, fetch-specific fields excluded. */
 export function canonical(c: ParsedCase): string {
   return JSON.stringify({
@@ -45,17 +48,28 @@ export async function remainingQuota(deps: CheckerDeps, useReserve: boolean): Pr
 export async function checkReceipt(deps: CheckerDeps, row: ReceiptRow): Promise<CheckOutcome> {
   const receipt = await deps.sealer.decrypt(row.enc);
   const now = deps.now();
+  const before = deps.uscis.requests;
   await deps.store.addUsage(utcDay(now));
   const result = await deps.uscis.caseStatus(receipt);
+  // A retry after an expired token is a second call.
+  const extra = deps.uscis.requests - before - 1;
+  if (extra > 0) await deps.store.addUsage(utcDay(now), extra);
   const stamp = now.toISOString();
 
   if (result.kind === 'rate_limited') return { kind: 'stop', message: 'USCIS rate limit reached.' };
-  if (result.kind === 'auth_failed') return { kind: 'stop', message: result.message };
+  if (result.kind === 'auth_failed') {
+    // Details are for the operator's logs; users get a plain message (see app.ts).
+    console.error('USCIS auth failed', result.message);
+    return { kind: 'stop', message: UPSTREAM_UNAVAILABLE };
+  }
   if (result.kind !== 'ok') {
+    // Fixed messages only: upstream text is not stored or shown, in case it echoes the receipt.
     const message =
       result.kind === 'not_found'
         ? 'USCIS has no case with this receipt number in this environment.'
-        : result.message;
+        : result.kind === 'invalid'
+          ? 'USCIS rejected the receipt number.'
+          : `USCIS returned HTTP ${result.status}. The server tries again later.`;
     await deps.store.recordCheck(row.hmac, stamp, message);
     return { kind: 'failed', message };
   }
@@ -89,24 +103,24 @@ export async function pollDue(deps: CheckerDeps): Promise<PollSummary> {
   const budget = Math.min(deps.config.batchSize, await remainingQuota(deps, false));
   if (budget === 0) return { ...summary, stopped: 'Daily quota used.' };
 
-  const nowMs = deps.now().getTime();
-  const intervalMs = deps.config.pollIntervalHours * 3_600_000;
-  const candidates = await deps.store.dueReceipts(
-    new Date(nowMs - intervalMs).toISOString(),
-    budget * 2,
+  const now = deps.now();
+  const nowMs = now.getTime();
+  const due = await deps.store.dueReceipts(
+    now.toISOString(),
+    deps.config.pollIntervalHours,
+    budget,
   );
-  // Receipts that keep failing back off: 2x, 4x, 8x, up to 16x the interval.
-  const due = candidates
-    .filter((r) => {
-      if (!r.last_checked_at || r.fail_count === 0) return true;
-      const wait = intervalMs * 2 ** Math.min(r.fail_count, 4);
-      return nowMs - new Date(r.last_checked_at).getTime() >= wait;
-    })
-    .slice(0, budget);
 
   for (const [i, row] of due.entries()) {
     if (i > 0) await deps.sleep(deps.config.minCallGapMs);
-    const outcome = await checkReceipt(deps, row);
+    let outcome: CheckOutcome;
+    try {
+      outcome = await checkReceipt(deps, row);
+    } catch {
+      // One bad row (for example data sealed with an old key) must not stop polling.
+      await deps.store.recordCheck(row.hmac, now.toISOString(), 'Stored data cannot be read.');
+      outcome = { kind: 'failed', message: 'Stored data cannot be read.' };
+    }
     summary.checked++;
     if (outcome.kind === 'changed') summary.changed++;
     if (outcome.kind === 'failed') summary.failed++;
@@ -118,5 +132,6 @@ export async function pollDue(deps: CheckerDeps): Promise<PollSummary> {
 
   const cutoff = new Date(nowMs - deps.config.inactiveAccountDays * 86_400_000).toISOString();
   await deps.store.deleteInactiveAccounts(cutoff);
+  await deps.store.collectGarbage(now, deps.config.refreshCooldownMinutes * 60_000);
   return summary;
 }

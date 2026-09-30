@@ -32,7 +32,7 @@ test('paste CSV reports bad lines and imports good ones', async ({ page }) => {
   await expect(dialog.getByRole('alert')).toContainText('Line 2: "soon" is not a date');
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('button', { name: 'My office' })).toBeVisible();
-  await expect(page.getByText('My office: Up 0.5 months (4%) since 2025-01-01.')).toBeVisible();
+  await expect(page.getByText('My office: Up 0.5 months (4%) since Jan 1, 2025.')).toBeVisible();
 });
 
 test('projection reports an estimate with a retrogression caveat', async ({ page }) => {

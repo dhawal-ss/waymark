@@ -31,11 +31,16 @@ export function seriesChange(points: readonly SeriesPoint[]): SeriesChange | nul
   return { from, to, delta, percent: from.value === 0 ? null : delta / from.value };
 }
 
-export function describeChange(change: SeriesChange | null, unit = 'months'): string {
+export function describeChange(
+  change: SeriesChange | null,
+  unit = 'months',
+  formatDate: (date: string) => string = (date) => date,
+): string {
   if (!change) return 'Add at least 2 points to see a change.';
+  const since = formatDate(change.from.date);
   const d = Math.abs(change.delta);
   const amount = Number.isInteger(d) ? String(d) : d.toFixed(1);
-  if (change.delta === 0) return `No change since ${change.from.date}.`;
+  if (change.delta === 0) return `No change since ${since}.`;
   const pct = change.percent === null ? '' : ` (${Math.round(Math.abs(change.percent) * 100)}%)`;
-  return `${change.delta > 0 ? 'Up' : 'Down'} ${amount} ${unit}${pct} since ${change.from.date}.`;
+  return `${change.delta > 0 ? 'Up' : 'Down'} ${amount} ${unit}${pct} since ${since}.`;
 }

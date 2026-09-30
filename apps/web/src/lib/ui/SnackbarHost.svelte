@@ -3,6 +3,25 @@
   import IconButton from './IconButton.svelte';
 
   let paused = $state(false);
+  let el: HTMLDivElement | undefined = $state();
+
+  // Floating buttons move up by this much so the snackbar never covers them.
+  $effect(() => {
+    const root = document.documentElement.style;
+    if (!el) {
+      root.setProperty('--snackbar-offset', '0px');
+      return;
+    }
+    const node = el;
+    const observer = new ResizeObserver(() =>
+      root.setProperty('--snackbar-offset', `${node.offsetHeight + 8}px`),
+    );
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.setProperty('--snackbar-offset', '0px');
+    };
+  });
 
   $effect(() => {
     const message = snackbar.current;
@@ -23,6 +42,7 @@
   {#if snackbar.current}
     {#key snackbar.current.id}
       <div
+        bind:this={el}
         class="snackbar"
         role="group"
         aria-label="Notification"
@@ -99,8 +119,10 @@
     font-weight: 600;
     cursor: pointer;
   }
-  .action:hover {
-    background: color-mix(in srgb, var(--inverse-primary) 10%, transparent);
+  @media (hover: hover) {
+    .action:hover {
+      background: color-mix(in srgb, var(--inverse-primary) 10%, transparent);
+    }
   }
   .action:focus-visible {
     outline-color: var(--inverse-primary);

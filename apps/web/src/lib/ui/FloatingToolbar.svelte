@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reserveFloatingSpace } from './floating';
   import IconButton from './IconButton.svelte';
   import type { IconName } from './icons';
   import { rovingIndex } from './keys';
@@ -19,6 +20,8 @@
   }
 
   let { items, label, vibrant = false, fixed = false }: Props = $props();
+
+  $effect(() => (fixed ? reserveFloatingSpace() : undefined));
 
   let focusIndex = $state(0);
   let bar: HTMLDivElement | undefined = $state();
@@ -78,6 +81,8 @@
     translate: -50% 0;
     bottom: calc(var(--nav-bar-height) + 16px + env(safe-area-inset-bottom));
     z-index: 25;
+    transform: translateY(calc(-1 * var(--snackbar-offset, 0px)));
+    transition: transform var(--spring-default-spatial-duration) var(--spring-default-spatial);
   }
   @media (min-width: 840px) {
     .fixed {

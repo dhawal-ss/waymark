@@ -46,8 +46,10 @@
     border-radius: 24px;
     color: var(--on-surface);
   }
-  .back:hover {
-    background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  @media (hover: hover) {
+    .back:hover {
+      background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+    }
   }
   .actions {
     display: flex;

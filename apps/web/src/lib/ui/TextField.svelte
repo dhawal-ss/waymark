@@ -68,8 +68,10 @@
     font-size: 1rem;
     transition: border-color var(--duration-short) var(--ease-standard);
   }
-  input:hover {
-    border-color: var(--on-surface);
+  @media (hover: hover) {
+    input:hover {
+      border-color: var(--on-surface);
+    }
   }
   input:focus {
     outline: none;
@@ -107,9 +109,13 @@
     font-size: 0.75rem;
     line-height: 1rem;
   }
-  .invalid input,
-  .invalid input:hover {
+  .invalid input {
     border-color: var(--error);
+  }
+  @media (hover: hover) {
+    .invalid input:hover {
+      border-color: var(--error);
+    }
   }
   .invalid input:focus {
     box-shadow: inset 0 0 0 1px var(--error);

@@ -109,8 +109,14 @@
     border-top-right-radius: 20px;
     border-bottom-right-radius: 20px;
   }
-  button:hover {
-    background: color-mix(in srgb, var(--on-surface-variant) 8%, var(--surface-container-highest));
+  @media (hover: hover) {
+    button:hover {
+      background: color-mix(
+        in srgb,
+        var(--on-surface-variant) 8%,
+        var(--surface-container-highest)
+      );
+    }
   }
   button:active {
     border-radius: 4px;

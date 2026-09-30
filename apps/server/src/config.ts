@@ -16,6 +16,13 @@ export interface Env {
   PROCESSING_TIMES_BASE_URL?: string;
   /** Secret for the admin API (targets, quarterly data imports, manual runs). */
   ADMIN_TOKEN?: string;
+  /** Optional Workers Rate Limiting binding, keyed by client IP, for account creation. */
+  ACCOUNT_LIMITER?: RateLimiter;
+}
+
+/** The Workers Rate Limiting binding (wrangler.toml [[ratelimits]]). */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 export interface Config {
@@ -27,6 +34,8 @@ export interface Config {
   /** Share of the daily quota kept free for on-demand refreshes and new subscriptions. */
   reserveShare: number;
   maxReceiptsPerAccount: number;
+  /** Checks outside the schedule (new receipts, refreshes) per account per day. */
+  immediateChecksPerAccount: number;
   maxAccounts: number;
   /** API calls per scheduled run, so a run stays well inside Worker time limits. */
   batchSize: number;
@@ -49,6 +58,8 @@ export interface Config {
 }
 
 const int = (value: string | undefined, fallback: number, min: number, max: number) => {
+  // Unset or empty means the default, not zero.
+  if (value === undefined || value.trim() === '') return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 };
@@ -66,6 +77,7 @@ export function readConfig(env: Env): Config {
     dailyQuota: int(env.DAILY_QUOTA, 1000, 1, 1_000_000),
     reserveShare: 0.1,
     maxReceiptsPerAccount: int(env.MAX_RECEIPTS_PER_ACCOUNT, 10, 1, 100),
+    immediateChecksPerAccount: 20,
     maxAccounts: int(env.MAX_ACCOUNTS, 500, 1, 1_000_000),
     batchSize: 40,
     minCallGapMs: 220,

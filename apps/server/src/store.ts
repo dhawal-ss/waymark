@@ -70,6 +70,14 @@ export class Store {
     await this.collectGarbage();
   }
 
+  /** Count one use of `kind` for an account today; false once `max` is reached. */
+  async takeAccountBudget(accountId: string, day: string, max: number): Promise<boolean> {
+    const key = `acct:${accountId}:${day}`;
+    if ((await this.usage(key)) >= max) return false;
+    await this.addUsage(key);
+    return true;
+  }
+
   async deleteInactiveAccounts(before: string): Promise<number> {
     const stale = await this.db
       .prepare('SELECT id FROM accounts WHERE last_seen_at < ?')
@@ -135,13 +143,26 @@ export class Store {
     return row?.n ?? 0;
   }
 
-  async createSubscription(row: SubscriptionRow): Promise<void> {
-    await this.db
+  /** Insert unless the account already has `max` subscriptions. The check and insert are atomic. */
+  async createSubscription(row: SubscriptionRow, max: number): Promise<boolean> {
+    const res = await this.db
       .prepare(
-        'INSERT INTO subscriptions (id, account_id, receipt_hmac, created_at) VALUES (?, ?, ?, ?)',
+        `INSERT INTO subscriptions (id, account_id, receipt_hmac, created_at)
+         SELECT ?, ?, ?, ?
+         WHERE (SELECT COUNT(*) FROM subscriptions WHERE account_id = ?) < ?`,
       )
-      .bind(row.id, row.account_id, row.receipt_hmac, row.created_at)
+      .bind(row.id, row.account_id, row.receipt_hmac, row.created_at, row.account_id, max)
       .run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** When a receipt that nobody tracks was last checked, within the cooldown window. */
+  async recentCheck(hmac: string): Promise<string | null> {
+    const row = await this.db
+      .prepare('SELECT checked_at FROM recent_checks WHERE hmac = ?')
+      .bind(hmac)
+      .first<{ checked_at: string }>();
+    return row?.checked_at ?? null;
   }
 
   async deleteSubscription(accountId: string, id: string): Promise<boolean> {
@@ -153,9 +174,25 @@ export class Store {
     return (res.meta.changes ?? 0) > 0;
   }
 
-  /** Remove receipts nobody tracks, with their snapshots. */
-  async collectGarbage(): Promise<void> {
+  /**
+   * Remove receipts nobody tracks, with their snapshots. Their last check time stays in
+   * recent_checks for `keepMs`, so the refresh cooldown survives deleting and re-adding.
+   */
+  async collectGarbage(now = new Date(), keepMs = 3_600_000): Promise<void> {
     await this.db.batch([
+      this.db.prepare(
+        `INSERT OR REPLACE INTO recent_checks (hmac, checked_at)
+         SELECT hmac, last_checked_at FROM receipts
+         WHERE last_checked_at IS NOT NULL
+           AND hmac NOT IN (SELECT receipt_hmac FROM subscriptions)`,
+      ),
+      this.db
+        .prepare('DELETE FROM recent_checks WHERE checked_at < ?')
+        .bind(new Date(now.getTime() - keepMs).toISOString()),
+      // Per-account daily budgets older than yesterday.
+      this.db
+        .prepare(`DELETE FROM usage WHERE day LIKE 'acct:%' AND substr(day, -10) < ?`)
+        .bind(new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)),
       this.db.prepare(
         'DELETE FROM snapshots WHERE receipt_hmac NOT IN (SELECT receipt_hmac FROM subscriptions)',
       ),
@@ -165,16 +202,22 @@ export class Store {
     ]);
   }
 
-  /** Receipts not checked since `before`, oldest first. Failing receipts back off. */
-  async dueReceipts(before: string, limit: number): Promise<ReceiptRow[]> {
+  /**
+   * Tracked receipts due for a check: never checked first, then healthy ones, oldest first.
+   * Receipts that keep failing back off (2x, 4x, 8x, up to 16x the interval) in the query, so they
+   * never crowd out healthy ones.
+   */
+  async dueReceipts(now: string, intervalHours: number, limit: number): Promise<ReceiptRow[]> {
     const res = await this.db
       .prepare(
         `SELECT * FROM receipts
-         WHERE last_checked_at IS NULL OR last_checked_at < ?
-         ORDER BY last_checked_at IS NOT NULL, last_checked_at, fail_count
+         WHERE hmac IN (SELECT receipt_hmac FROM subscriptions)
+           AND (last_checked_at IS NULL
+             OR (julianday(?) - julianday(last_checked_at)) * 24 >= ? * (1 << min(fail_count, 4)))
+         ORDER BY last_checked_at IS NOT NULL, fail_count > 0, last_checked_at
          LIMIT ?`,
       )
-      .bind(before, limit)
+      .bind(now, intervalHours, limit)
       .all<ReceiptRow>();
     return res.results;
   }

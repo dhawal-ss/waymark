@@ -53,6 +53,7 @@ const NAMES = [
   'link',
   'calendar_add_on',
   'mobile_arrow_down',
+  'share',
 ];
 
 const require = createRequire(import.meta.url);

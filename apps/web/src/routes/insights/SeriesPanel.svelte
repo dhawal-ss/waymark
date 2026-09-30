@@ -300,7 +300,7 @@
         {#each chartSeries as s (s.id)}
           <li class="t-small">
             <strong>{s.name}:</strong>
-            {describeChange(seriesChange(s.points))}
+            {describeChange(seriesChange(s.points), 'months', (d) => formatDate(d))}
           </li>
         {/each}
       </ul>
@@ -540,8 +540,10 @@
     border-radius: var(--shape-m);
     cursor: pointer;
   }
-  .choice:hover {
-    background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  @media (hover: hover) {
+    .choice:hover {
+      background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+    }
   }
   .choice input {
     width: 20px;

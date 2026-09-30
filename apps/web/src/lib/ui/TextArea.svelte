@@ -7,6 +7,8 @@
     supporting?: string;
     error?: string;
     mono?: boolean;
+    /** Keep the label for screen readers only, when a heading already names the field. */
+    hideLabel?: boolean;
   }
 
   let {
@@ -15,6 +17,7 @@
     supporting,
     error,
     mono = false,
+    hideLabel = false,
     id: idProp,
     rows = 4,
     ...rest
@@ -26,7 +29,7 @@
 </script>
 
 <div class="field" class:invalid={!!error}>
-  <label for={id} class="t-small">{label}</label>
+  <label for={id} class="t-small" class:visually-hidden={hideLabel}>{label}</label>
   <textarea
     {id}
     {rows}
@@ -70,8 +73,10 @@
     font-size: 0.8125rem;
     line-height: 1.25rem;
   }
-  textarea:hover {
-    border-color: var(--on-surface);
+  @media (hover: hover) {
+    textarea:hover {
+      border-color: var(--on-surface);
+    }
   }
   textarea:focus {
     outline: none;

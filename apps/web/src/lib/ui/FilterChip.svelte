@@ -55,8 +55,10 @@
     position: absolute;
     inset: -8px 0;
   }
-  .chip:hover {
-    background: color-mix(in srgb, var(--on-surface-variant) 8%, transparent);
+  @media (hover: hover) {
+    .chip:hover {
+      background: color-mix(in srgb, var(--on-surface-variant) 8%, transparent);
+    }
   }
   .chip:active {
     border-radius: var(--shape-l);
@@ -67,8 +69,10 @@
     color: var(--on-secondary-container);
     box-shadow: none;
   }
-  .selected:hover {
-    background: color-mix(in srgb, var(--on-secondary-container) 8%, var(--secondary-container));
+  @media (hover: hover) {
+    .selected:hover {
+      background: color-mix(in srgb, var(--on-secondary-container) 8%, var(--secondary-container));
+    }
   }
   .chip:disabled {
     cursor: default;

@@ -3,6 +3,8 @@
     appointmentSuggestions,
     caseStats,
     caseSummaryLine,
+    closedByUscis,
+    FORM_NAMES,
     CATEGORY_LABELS,
     currentStatus,
     daysSinceFiling,
@@ -17,18 +19,18 @@
   import {
     addAppointmentDeadline,
     copyText,
-    deleteCase,
     exportDeadlinesToCalendar,
     deleteManualEntry,
+    logStatus,
+    shareText,
     markCaseSeen,
     todayLocal,
     updateCase,
   } from '../lib/actions';
   import { formatDate, formatDateTime, plural, relativeTime } from '../lib/format';
   import { flushSaves, store, tz } from '../lib/stores/data.svelte';
-  import { navigate } from '../lib/stores/router.svelte';
   import { openSheet } from '../lib/stores/ui.svelte';
-  import { startSync } from '../lib/sync';
+  import { importFromClipboard, isWaitingFor, startSync } from '../lib/sync.svelte';
   import Button from '../lib/ui/Button.svelte';
   import DeadlineList from '../lib/ui/DeadlineList.svelte';
   import EmptyState from '../lib/ui/EmptyState.svelte';
@@ -133,11 +135,6 @@
     updateCase(id, { processingMonths: monthsValue });
   }
 
-  function remove() {
-    deleteCase(id);
-    navigate('/cases');
-  }
-
   const QUICK = STATUS_KEYS.filter((k) => k !== 'received');
 </script>
 
@@ -153,7 +150,10 @@
     {/snippet}
   </EmptyState>
 {:else}
-  <PageHeader title={c.owner || c.form} back={{ href: '#/cases', label: 'Back to cases' }} />
+  <PageHeader
+    title={c.owner || FORM_NAMES[c.form]}
+    back={{ href: '#/cases', label: 'Back to cases' }}
+  />
 
   <section class="hero tone-{info.tone}" aria-label="Case summary">
     <div class="hero-top">
@@ -192,7 +192,7 @@
       </p>
     {/if}
     <div class="hero-actions">
-      <StatusPill {status} />
+      <StatusPill {status} closed={closedByUscis(c)} />
       <SplitButton
         label="Log a status"
         icon="add"
@@ -200,7 +200,11 @@
         onclick={() => openSheet({ kind: 'status', caseId: id })}
         items={QUICK.map((k) => ({
           label: STATUSES[k].label,
-          onselect: () => openSheet({ kind: 'status', caseId: id, status: k }),
+          // Log at once with Undo; statuses with a response due open the sheet for the date.
+          onselect: () =>
+            k === 'rfe' || k === 'noid'
+              ? openSheet({ kind: 'status', caseId: id, status: k })
+              : logStatus(id, k, todayLocal()),
         }))}
       />
     </div>
@@ -224,19 +228,29 @@
       </p>
     {/if}
     <div class="row">
-      <Button variant="tonal" icon="sync" onclick={() => startSync(c.receipt, c.id)}>Sync</Button>
+      {#if isWaitingFor(c.id)}
+        <Button icon="content_paste" onclick={() => importFromClipboard(c.id)}
+          >Import copied JSON</Button
+        >
+      {/if}
+      <Button
+        variant={isWaitingFor(c.id) ? 'outlined' : 'tonal'}
+        icon="open_in_new"
+        onclick={() => startSync(c.receipt, c.id)}>Open case JSON</Button
+      >
       <Button
         variant="outlined"
         icon="content_paste"
         onclick={() => openSheet({ kind: 'import', caseId: c.id })}>Paste JSON</Button
       >
       {#if fresh > 0}<Button variant="text" icon="check" onclick={() => markCaseSeen(c.id)}
-          >Mark {fresh} seen</Button
+          >Mark as seen</Button
         >{/if}
     </div>
     <p class="t-small muted">
-      Sync opens your case JSON on my.uscis.gov in a new tab. Copy the page, come back, and choose
-      Import. Event meanings are community documented, not official.
+      Open case JSON opens my.uscis.gov in a new tab while you are signed in. Select all and copy
+      the page, come back, and choose Import copied JSON. Event meanings are community documented,
+      not official.
     </p>
     {#if syncEnabled()}<ServerTracking {c} />{/if}
   </section>
@@ -439,7 +453,7 @@
 
   <section class="panel" aria-labelledby="notes-title">
     <h2 id="notes-title" class="t-title">Notes</h2>
-    <TextArea label="Notes for this case" bind:value={notes} rows={4} oninput={onNotes} />
+    <TextArea label="Notes for this case" hideLabel bind:value={notes} rows={4} oninput={onNotes} />
     <p class="t-small muted" aria-live="polite">
       {notesState === 'pending'
         ? 'Saving'
@@ -465,11 +479,10 @@
         onclick: () => openSheet({ kind: 'deadline', caseId: c.id }),
       },
       {
-        icon: 'content_copy',
-        label: 'Copy summary',
-        onclick: () => copyText(caseSummaryLine(c, today, zone), 'Copied the case summary.'),
+        icon: 'share',
+        label: 'Share summary',
+        onclick: () => shareText(caseSummaryLine(c, today, zone), 'Copied the case summary.'),
       },
-      { icon: 'delete', label: 'Delete case', onclick: remove },
     ]}
   />
 {/if}
@@ -486,6 +499,7 @@
   }
   .hero-top {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
   }

@@ -83,8 +83,8 @@ test('imports pasted USCIS JSON, undoes it, and marks new events on re-import', 
   await card.click();
   await expect(page.getByText('Unrecognized event')).toBeVisible();
   await expect(page.getByText('ZZZ9')).toBeVisible();
-  await page.getByRole('button', { name: 'Mark 2 seen' }).click();
-  await expect(page.getByRole('button', { name: 'Mark 2 seen' })).toBeHidden();
+  await page.getByRole('button', { name: 'Mark as seen' }).click();
+  await expect(page.getByRole('button', { name: 'Mark as seen' })).toBeHidden();
 });
 
 test('sync opens the case JSON and imports from the clipboard on return', async ({
@@ -101,7 +101,7 @@ test('sync opens the case JSON and imports from the clipboard on return', async 
       return null;
     };
   });
-  await page.getByRole('button', { name: 'Sync', exact: true }).click();
+  await page.getByRole('button', { name: 'Open case JSON' }).click();
   expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
     'https://my.uscis.gov/account/case-service/api/cases/MSC0000000003',
   ]);
@@ -127,9 +127,10 @@ test('falls back to the paste sheet when clipboard reading is blocked', async ({
       value: { readText: () => Promise.reject(new Error('denied')) },
     });
   });
-  await page.getByRole('button', { name: 'Sync', exact: true }).click();
+  await page.getByRole('button', { name: 'Open case JSON' }).click();
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await snackbar(page, 'Copied the case JSON?').getByRole('button', { name: 'Import' }).click();
+  // The case page keeps an Import button after the snackbar is gone.
+  await page.getByRole('button', { name: 'Import copied JSON' }).click();
   const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
   await expect(dialog.getByRole('alert')).toContainText('did not allow reading the clipboard');
 });
@@ -139,24 +140,44 @@ test('logs a quick status, then deletes the entry with undo', async ({ page }) =
   await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
   await page.getByRole('button', { name: 'Quick statuses' }).click();
   await page.getByRole('menuitem', { name: 'Interview scheduled' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Log a status' });
-  await expect(dialog.getByLabel('Status')).toHaveValue('interview');
-  await dialog.getByLabel('Note').fill('Field office letter');
-  await dialog.getByRole('button', { name: 'Log status' }).click();
+  // Quick statuses log today at once.
+  await expect(snackbar(page, 'Logged: Interview scheduled.')).toBeVisible();
   await expect(page.locator('.hero').getByText('Interview scheduled')).toBeVisible();
-  await expect(page.getByText('Field office letter')).toBeVisible();
+  const entry = page.getByRole('button', { name: 'Delete entry: Interview scheduled' });
+  await expect(entry).toHaveCount(1);
 
-  await page.getByRole('button', { name: 'Delete entry: Interview scheduled' }).click();
-  await expect(page.getByText('Field office letter')).toBeHidden();
+  await entry.click();
+  await expect(entry).toHaveCount(0);
   await snackbar(page, 'Deleted the entry.').getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByText('Field office letter')).toBeVisible();
+  await expect(entry).toHaveCount(1);
 });
 
-test('deletes a case from the toolbar with undo', async ({ page }) => {
+test('logs an evidence request with a response deadline', async ({ page }) => {
+  await loadExample(page);
+  await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
+  await page.getByRole('button', { name: 'Quick statuses' }).click();
+  await page.getByRole('menuitem', { name: 'Evidence requested' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Log a status' });
+  await expect(dialog.getByLabel('Status')).toHaveValue('rfe');
+  await dialog.getByLabel('Note').fill('Field office letter');
+  await dialog.getByLabel('Response due').fill('2099-01-15');
+  await dialog.getByRole('button', { name: 'Log status' }).click();
+  await expect(
+    snackbar(page, 'Logged: Evidence requested. Added deadline: Respond to the evidence request.'),
+  ).toBeVisible();
+  await expect(page.getByText('Field office letter')).toBeVisible();
+  await expect(page.getByText('Respond to the evidence request').first()).toBeVisible();
+});
+
+test('deletes a case from the edit sheet with undo', async ({ page }) => {
   await loadExample(page);
   await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
   await page
     .getByRole('toolbar', { name: 'Case actions' })
+    .getByRole('button', { name: 'Edit case' })
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Edit case' })
     .getByRole('button', { name: 'Delete case' })
     .click();
   await expect(page.locator('main h1')).toHaveText('Cases');
@@ -169,7 +190,9 @@ test('copies a one-line summary', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await loadExample(page);
   await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
-  await page.getByRole('button', { name: 'Copy summary' }).click();
+  // Without a system share sheet, Share summary copies instead.
+  await page.evaluate(() => Object.defineProperty(navigator, 'share', { value: undefined }));
+  await page.getByRole('button', { name: 'Share summary' }).click();
   await expect(snackbar(page, 'Copied the case summary.')).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
     /^I-130 MSC0000000003 \(Sam\): In review\. Day \d+ since filing on \d{4}-\d{2}-\d{2}\.$/,
@@ -217,7 +240,7 @@ test('sorts action cases first and summarizes the list', async ({ page }) => {
   const receipts = await page.locator('a.card .receipt').allTextContents();
   expect(receipts).toEqual(['IOE0000000001', 'MSC0000000003', 'IOE0000000002']);
   await expect(page.getByText('3 in progress.')).toBeVisible();
-  await expect(page.getByText('Longest wait 420 days.')).toBeVisible();
+  await expect(page.locator('.summary').getByText(/^Next deadline: /)).toBeVisible();
   await expect(page.getByText('Example data is loaded and labeled demo.')).toBeVisible();
   await page.getByRole('button', { name: 'Remove example data' }).click();
   await expect(page.getByRole('heading', { name: 'No cases yet' })).toBeVisible();

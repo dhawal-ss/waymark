@@ -112,8 +112,15 @@
   .meta {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0 12px;
     color: var(--on-surface-variant);
+  }
+  /* A comfortable tap target without changing the line layout. */
+  .meta a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
   }
   .overdue {
     color: var(--error);

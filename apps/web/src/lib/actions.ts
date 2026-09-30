@@ -89,7 +89,13 @@ export function deleteCase(id: string): void {
   );
 }
 
-export function logStatus(caseId: string, status: StatusKey, date: LocalDate, note = ''): void {
+export function logStatus(
+  caseId: string,
+  status: StatusKey,
+  date: LocalDate,
+  note = '',
+  deadline?: { title: string; date: LocalDate },
+): void {
   mutate(
     (d) => {
       const c = d.cases.find((x) => x.id === caseId);
@@ -103,8 +109,21 @@ export function logStatus(caseId: string, status: StatusKey, date: LocalDate, no
       if (note.trim()) entry.note = note.trim();
       c.manual.push(entry);
       c.updatedAt = nowInstant();
+      if (deadline)
+        d.deadlines.push({
+          id: newId(),
+          title: deadline.title,
+          date: deadline.date,
+          done: false,
+          caseId,
+          createdAt: nowInstant(),
+        });
     },
-    { undo: `Logged: ${STATUSES[status].label}.` },
+    {
+      undo: deadline
+        ? `Logged: ${STATUSES[status].label}. Added deadline: ${deadline.title}.`
+        : `Logged: ${STATUSES[status].label}.`,
+    },
   );
 }
 
@@ -272,6 +291,20 @@ export function deleteEverything(note?: string): void {
       },
     },
   );
+}
+
+/** Open the system share sheet (Android, iOS); copy instead where sharing is not available. */
+export async function shareText(text: string, copied: string): Promise<void> {
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ text });
+      return;
+    } catch (e) {
+      // Closing the share sheet is not an error.
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+    }
+  }
+  await copyText(text, copied);
 }
 
 export async function copyText(text: string, done: string): Promise<void> {

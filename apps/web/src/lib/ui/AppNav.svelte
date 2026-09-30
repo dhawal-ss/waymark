@@ -117,8 +117,10 @@
       background-color var(--duration-short) var(--ease-standard),
       width var(--spring-fast-spatial-duration) var(--spring-fast-spatial);
   }
-  a:hover .indicator {
-    background: color-mix(in srgb, var(--on-surface-variant) 8%, transparent);
+  @media (hover: hover) {
+    a:hover .indicator {
+      background: color-mix(in srgb, var(--on-surface-variant) 8%, transparent);
+    }
   }
   a.active .indicator {
     width: 64px;

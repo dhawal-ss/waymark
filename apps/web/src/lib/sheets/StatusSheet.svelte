@@ -21,6 +21,16 @@
   let date = $state(today);
   let note = $state('');
   let submitted = $state(false);
+  // Evidence requests and intents to deny come with a response due date worth tracking.
+  const RESPONSE_TITLES: Partial<Record<StatusKey, string>> = {
+    rfe: 'Respond to the evidence request',
+    noid: 'Respond to the intent to deny',
+  };
+  const responseTitle = $derived(RESPONSE_TITLES[status]);
+  let due = $state('');
+  const dueError = $derived(
+    due && (!isLocalDate(due) || due < today) ? 'Enter a due date from today on.' : undefined,
+  );
 
   const dateError = $derived(
     !isLocalDate(date)
@@ -33,8 +43,14 @@
   function submit(event: SubmitEvent) {
     event.preventDefault();
     submitted = true;
-    if (dateError) return;
-    logStatus(caseId, status, date, note);
+    if (dateError || (responseTitle && dueError)) return;
+    logStatus(
+      caseId,
+      status,
+      date,
+      note,
+      responseTitle && due ? { title: responseTitle, date: due } : undefined,
+    );
     onclose();
   }
 </script>
@@ -54,6 +70,16 @@
       required
       error={submitted || date > today ? dateError : undefined}
     />
+    {#if responseTitle}
+      <TextField
+        label="Response due"
+        type="date"
+        bind:value={due}
+        min={today}
+        error={submitted ? dueError : undefined}
+        supporting="Optional. Adds a deadline: {responseTitle}."
+      />
+    {/if}
     <TextArea label="Note" bind:value={note} rows={3} supporting="Optional." />
   </form>
   {#snippet actions()}

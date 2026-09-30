@@ -49,8 +49,10 @@
     opacity: 0;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  input:hover::before {
-    opacity: var(--state-hover);
+  @media (hover: hover) {
+    input:hover::before {
+      opacity: var(--state-hover);
+    }
   }
   input:checked {
     background: var(--primary);

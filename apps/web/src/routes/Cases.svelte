@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { casesSummary, isClosed, sortCases, type Case } from '@waymark/core';
+  import { casesSummary, isClosed, newEventCount, sortCases, type Case } from '@waymark/core';
   import {
     exportDeadlinesToCalendar,
     importDataFile,
@@ -19,6 +19,8 @@
   import Icon from '../lib/ui/Icon.svelte';
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import TextField from '../lib/ui/TextField.svelte';
+  import { backupDue, daysSinceBackup, exportBackup, snoozeBackup } from '../lib/backup.svelte';
+  import { install, promptInstall } from '../lib/install.svelte';
 
   const today = $derived(todayLocal());
   const zone = $derived(tz());
@@ -39,11 +41,31 @@
   let showClosed = $state(false);
   const openDeadlines = $derived(store.data.deadlines.filter((d) => !d.done));
   const summary = $derived(casesSummary(store.data.cases, store.data.deadlines, today, zone));
-  const longest = $derived(summary.longestWait);
+  const withNews = $derived(store.data.cases.filter((c) => newEventCount(c) > 0).length);
   const hasDemo = $derived(store.data.cases.some((c) => c.demo));
   let showDone = $state(false);
   const doneCount = $derived(store.data.deadlines.filter((d) => d.done).length);
   const visibleDeadlines = $derived(store.data.deadlines.filter((d) => showDone || !d.done));
+
+  const INSTALL_KEY = 'waymark:install-dismissed';
+  let installDismissed = $state(
+    (() => {
+      try {
+        return localStorage.getItem(INSTALL_KEY) === '1';
+      } catch {
+        return false;
+      }
+    })(),
+  );
+  function dismissInstall() {
+    installDismissed = true;
+    try {
+      localStorage.setItem(INSTALL_KEY, '1');
+    } catch {
+      // Storage blocked: the card comes back next time.
+    }
+  }
+  const lastBackup = $derived(daysSinceBackup(today));
 
   function importLegacy() {
     if (!store.legacy) return;
@@ -86,14 +108,21 @@
   </EmptyState>
 {:else if store.data.cases.length > 0}
   <p class="summary">
-    <strong class="t-headline">{summary.inProgress} in progress.</strong>
-    {#if longest}<span>Longest wait {plural(longest.days, 'day')}.</span>{/if}
+    {#if withNews > 0}
+      <strong class="t-headline news"
+        >{withNews === 1 ? '1 case has' : `${withNews} cases have`} new USCIS events.</strong
+      >
+      <span>{summary.inProgress} in progress.</span>
+    {:else}
+      <strong class="t-headline">{summary.inProgress} in progress.</strong>
+    {/if}
     {#if summary.nextDeadline}
-      <span
-        >Next deadline {formatShortDate(summary.nextDeadline.date, today)}, {relativeDays(
-          summary.nextDeadline.date,
+      {@const next = summary.nextDeadline}
+      <span class:overdue={next.date < today}
+        >{next.date < today ? 'Overdue' : 'Next deadline'}: {next.title}, {formatShortDate(
+          next.date,
           today,
-        )}.</span
+        )}, {relativeDays(next.date, today)}.</span
       >
     {:else}
       <span>No upcoming deadlines.</span>
@@ -106,6 +135,33 @@
       <span>Example data is loaded and labeled demo.</span>
       <Button variant="text" onclick={removeExample}>Remove example data</Button>
     </p>
+  {/if}
+
+  {#if install.available && !installDismissed}
+    <section class="card-note" aria-labelledby="install-title">
+      <h2 id="install-title" class="t-title">Install Waymark on this phone</h2>
+      <p class="t-small">
+        Opens from the home screen, works offline, and lets you share the case JSON from Chrome to
+        Waymark.
+      </p>
+      <div class="note-actions">
+        <Button icon="mobile_arrow_down" onclick={() => promptInstall()}>Install app</Button>
+        <Button variant="text" onclick={dismissInstall}>Not now</Button>
+      </div>
+    </section>
+  {:else if backupDue(today)}
+    <section class="card-note" aria-labelledby="backup-title">
+      <h2 id="backup-title" class="t-title">Back up your cases</h2>
+      <p class="t-small">
+        Your data is stored only on this device{lastBackup === null
+          ? ' and has not been exported yet'
+          : `. The last backup was ${plural(lastBackup, 'day')} ago`}. Export a file to keep a copy.
+      </p>
+      <div class="note-actions">
+        <Button icon="download" onclick={() => exportBackup({ share: true })}>Export backup</Button>
+        <Button variant="text" onclick={() => snoozeBackup(today)}>Remind me next week</Button>
+      </div>
+    </section>
   {/if}
 
   {#if store.data.cases.length >= SEARCH_FROM}
@@ -198,7 +254,6 @@
     { label: 'New deadline', icon: 'event', onselect: () => openSheet({ kind: 'deadline' }) },
   ]}
 />
-<div class="fab-space" aria-hidden="true"></div>
 
 <style>
   .summary {
@@ -212,6 +267,13 @@
   .summary strong {
     color: var(--on-surface);
   }
+  .summary .news {
+    color: var(--primary);
+  }
+  .summary .overdue {
+    color: var(--error);
+    font-weight: 600;
+  }
   .cases {
     display: grid;
     gap: 8px;
@@ -222,6 +284,21 @@
     .cases {
       grid-template-columns: 1fr 1fr;
     }
+  }
+  .card-note {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 16px 16px 12px;
+    border-radius: var(--shape-xl);
+    background: var(--secondary-container);
+    color: var(--on-secondary-container);
+  }
+  .note-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .search {
     margin-bottom: 12px;
@@ -277,8 +354,5 @@
     border-radius: var(--shape-m);
     background: var(--error-container);
     color: var(--on-error-container);
-  }
-  .fab-space {
-    height: 72px;
   }
 </style>

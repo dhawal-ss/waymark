@@ -104,8 +104,10 @@
     pointer-events: none;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  .btn:hover::after {
-    opacity: var(--state-hover);
+  @media (hover: hover) {
+    .btn:hover::after {
+      opacity: var(--state-hover);
+    }
   }
   .btn:focus-visible::after,
   .btn:active::after {
@@ -130,8 +132,10 @@
     background: var(--primary);
     color: var(--on-primary);
   }
-  .filled:hover {
-    box-shadow: var(--elevation-1);
+  @media (hover: hover) {
+    .filled:hover {
+      box-shadow: var(--elevation-1);
+    }
   }
   .tonal {
     background: var(--secondary-container);

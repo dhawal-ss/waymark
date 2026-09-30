@@ -18,8 +18,11 @@
 
   $effect(() => {
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // A sheet can name the field to start in; otherwise the dialog focuses its first control.
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    } else if (!open && dialog.open) dialog.close();
   });
 
   function oncancel(event: Event) {

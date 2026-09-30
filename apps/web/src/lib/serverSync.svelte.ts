@@ -46,6 +46,11 @@ export const serverSync: SyncState = $state({
   subscriptions: {},
 });
 
+const ADDRESS_ERROR = 'Enter the server address starting with https://.';
+
+/** The one server address field in Settings, shared by server sync and public data. */
+export const serverAddress = $state({ draft: DEFAULT_SERVER_URL || 'https://', error: '' });
+
 export const syncEnabled = (): boolean => Boolean(serverSync.token && serverSync.url);
 
 export class SyncError extends Error {
@@ -85,7 +90,11 @@ async function persist(): Promise<void> {
 /** Save a server address for public data without creating an account. */
 export async function setServerUrl(rawUrl: string): Promise<boolean> {
   const url = normalizeServerUrl(rawUrl);
-  if (!url) return false;
+  if (!url) {
+    serverAddress.error = ADDRESS_ERROR;
+    return false;
+  }
+  serverAddress.error = '';
   serverSync.url = url;
   await persist();
   return true;
@@ -135,6 +144,7 @@ function remember(subs: SubscriptionView[]): void {
 export async function initServerSync(): Promise<void> {
   const saved = await loadSetting<Saved>(SETTING);
   if (saved?.url) serverSync.url = saved.url;
+  if (serverSync.url) serverAddress.draft = serverSync.url;
   if (saved?.token && saved.url) {
     serverSync.token = saved.token;
     serverSync.cursor = saved.cursor ?? 0;
@@ -169,9 +179,10 @@ async function run<T>(task: () => Promise<T>): Promise<T | null> {
 export async function enableServerSync(rawUrl: string): Promise<boolean> {
   const url = normalizeServerUrl(rawUrl);
   if (!url) {
-    serverSync.error = 'Enter the server address starting with https://.';
+    serverAddress.error = ADDRESS_ERROR;
     return false;
   }
+  serverAddress.error = '';
   serverSync.url = url;
   const ok = await run(async () => {
     const health = await api<{ environment: 'sandbox' | 'production'; uscisConfigured: boolean }>(
@@ -196,9 +207,10 @@ export async function enableServerSync(rawUrl: string): Promise<boolean> {
 export async function useSyncKey(rawUrl: string, key: string): Promise<boolean> {
   const url = normalizeServerUrl(rawUrl);
   if (!url) {
-    serverSync.error = 'Enter the server address starting with https://.';
+    serverAddress.error = ADDRESS_ERROR;
     return false;
   }
+  serverAddress.error = '';
   serverSync.url = url;
   const ok = await run(async () => {
     const health = await api<{ environment: 'sandbox' | 'production' }>('/v1/health', {}, '');

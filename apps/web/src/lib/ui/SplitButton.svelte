@@ -89,8 +89,10 @@
     opacity: 0;
     transition: opacity var(--duration-short) var(--ease-standard);
   }
-  button:hover::after {
-    opacity: var(--state-hover);
+  @media (hover: hover) {
+    button:hover::after {
+      opacity: var(--state-hover);
+    }
   }
   button:active::after {
     opacity: var(--state-pressed);

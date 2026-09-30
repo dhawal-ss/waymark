@@ -38,7 +38,11 @@ test('rejects insecure addresses and reports an unreachable server', async ({ pa
     .getByLabel('Sync server address')
     .fill('http://sync.example.org');
   await page.getByRole('button', { name: 'Turn on server sync' }).click();
-  await expect(page.getByRole('alert')).toHaveText(
+  const address = page
+    .getByRole('region', { name: 'Server sync' })
+    .getByLabel('Sync server address');
+  await expect(address).toHaveAttribute('aria-invalid', 'true');
+  await expect(address).toHaveAccessibleDescription(
     'Enter the server address starting with https://.',
   );
 

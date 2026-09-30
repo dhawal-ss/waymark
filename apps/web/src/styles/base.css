@@ -104,3 +104,28 @@ svg {
     outline-color: Highlight;
   }
 }
+
+/* Disclosures read as controls: primary color and a chevron that turns when open. */
+details > summary {
+  gap: 8px;
+  color: var(--primary);
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-inline-start: 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -2px;
+  transition: rotate var(--spring-fast-spatial-duration) var(--spring-fast-spatial);
+}
+details[open] > summary::after {
+  rotate: 225deg;
+  translate: 0 2px;
+}
