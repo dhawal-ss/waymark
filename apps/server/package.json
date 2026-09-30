@@ -1,0 +1,26 @@
+{
+  "name": "@waymark/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply waymark --local",
+    "db:migrate:remote": "wrangler d1 migrations apply waymark --remote",
+    "sandbox:check": "node --experimental-strip-types scripts/sandbox-check.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@waymark/core": "workspace:*",
+    "hono": "^4.13.11"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260930.1",
+    "@types/node": "^22.20.4",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.144.0"
+  }
+}

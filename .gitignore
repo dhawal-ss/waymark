@@ -10,3 +10,5 @@ test-results/
 .env.*
 .wrangler/
 .claude/settings.local.json
+
+.dev.vars

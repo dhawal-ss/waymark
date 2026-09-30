@@ -14,7 +14,7 @@ import {
 } from './sanitize.ts';
 import { isStatusKey } from './statuses.ts';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const V02_STORAGE_KEY = 'waymark:v1';
 
 export interface ExportFile {
@@ -32,7 +32,11 @@ export function buildExport(data: AppData, now: Instant): ExportFile {
 export const MIGRATIONS: Record<
   number,
   (data: Record<string, unknown>) => Record<string, unknown>
-> = {};
+> = {
+  // 1 to 2: events may carry status text and cases may carry serverTracking. Both are optional,
+  // so schema 1 data is valid as is.
+  1: (data) => data,
+};
 
 export function migrateData(data: Record<string, unknown>, from: number): Record<string, unknown> {
   let current = data;

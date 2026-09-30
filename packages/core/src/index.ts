@@ -5,6 +5,7 @@ export * from './receipt.ts';
 export * from './events.ts';
 export * from './model.ts';
 export * from './elis.ts';
+export * from './official.ts';
 export * from './merge.ts';
 export * from './derive.ts';
 export * from './csv.ts';

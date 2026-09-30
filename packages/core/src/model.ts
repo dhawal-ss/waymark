@@ -18,6 +18,8 @@ export interface ManualEntry {
 export interface UscisEvent {
   code: string;
   at: Instant;
+  /** Status text for events from the official Case Status API (codes starting with "CS:"). */
+  text?: string;
 }
 
 export interface UscisNotice {
@@ -53,6 +55,8 @@ export interface Case {
   notes: string;
   manual: ManualEntry[];
   uscis?: UscisData;
+  /** Set while the optional sync server tracks this case through the official API. */
+  serverTracking?: { subscriptionId: string; since: Instant };
   demo?: boolean;
   createdAt: Instant;
   updatedAt: Instant;

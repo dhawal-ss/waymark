@@ -1,0 +1,28 @@
+{
+  "case_status": {
+    "receiptNumber": "EAC9999103402",
+    "formType": "I-130",
+    "submittedDate": "09-05-2023 14:37:40",
+    "modifiedDate": "10-12-2023 09:15:00",
+    "current_case_status_text_en": "Case Was Approved",
+    "current_case_status_desc_en": "On October 12, 2023, we approved your Form I-130. REDACTED DETAIL",
+    "current_case_status_text_es": "Caso Fue Aprobado",
+    "current_case_status_desc_es": "REDACTED",
+    "hist_case_status": [
+      {
+        "date": "09-05-2023 14:37:40",
+        "completed_text_en": "Case Was Received",
+        "completed_text_es": "Caso Fue Recibido"
+      },
+      {
+        "date": "09-20-2023 10:00:00",
+        "completed_text_en": "Request for Additional Evidence Was Sent"
+      },
+      {
+        "date": "10-01-2023 16:30:00",
+        "completed_text_en": "Response To USCIS' Request For Evidence Was Received"
+      }
+    ]
+  },
+  "message": "Query was successful"
+}

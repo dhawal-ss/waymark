@@ -1,5 +1,6 @@
 // USCIS ELIS event codes, as documented by the community. Unofficial: USCIS does not publish
 // these meanings. Unknown codes are shown as "Unrecognized event" with the raw code.
+import { OFFICIAL_CODE_PREFIX, officialStatusKey } from './official.ts';
 import type { StatusKey } from './statuses.ts';
 
 export type EventCategory =
@@ -70,8 +71,35 @@ add(['FE', 'II'], 'Notice of intent to deny', 'evidence', 'noid');
 add(['EA', 'IFA'], 'Case denied', 'denied', 'denied');
 add(['EX', 'EN', 'EZ'], 'Case closed', 'closed');
 
-export function eventInfo(code: string): EventInfo {
+/** Category for a status, used for manual entries and official API statuses. */
+export const STATUS_CATEGORY: Record<StatusKey, EventCategory> = {
+  received: 'receipt',
+  rfe: 'evidence',
+  rfe_resp: 'evidence',
+  biometrics: 'checks',
+  review: 'processing',
+  interview: 'interview',
+  transferred: 'processing',
+  approved: 'approved',
+  card_prod: 'card',
+  card_mailed: 'card',
+  delivered: 'card',
+  denied: 'denied',
+  noid: 'evidence',
+  other: 'unknown',
+};
+
+/** Meaning of an event. Official API events (code "CS:...") are described by their status text. */
+export function eventInfo(code: string, text?: string): EventInfo {
   const key = code.trim().toUpperCase();
+  if (key.startsWith(OFFICIAL_CODE_PREFIX)) {
+    const label =
+      text?.trim() || key.slice(OFFICIAL_CODE_PREFIX.length).replace(/_/g, ' ').toLowerCase();
+    const status = officialStatusKey(label);
+    return status
+      ? { code: key, label, category: STATUS_CATEGORY[status], status }
+      : { code: key, label, category: 'unknown' };
+  }
   const known = DICTIONARY[key];
   return known
     ? { code: key, ...known }

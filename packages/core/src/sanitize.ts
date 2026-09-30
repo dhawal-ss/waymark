@@ -64,7 +64,8 @@ function sanitizeUscis(raw: unknown, now: Instant): UscisData | undefined {
     if (!isObj(e)) continue;
     const code = asString(e.code).trim().toUpperCase();
     const at = toInstant(e.at);
-    if (code && at) events.push({ code, at });
+    const text = asString(e.text).trim().slice(0, 200);
+    if (code && at) events.push(text ? { code, at, text } : { code, at });
   }
   events.sort((a, b) => a.at.localeCompare(b.at));
   const notices: UscisNotice[] = asArray(raw.notices)
@@ -122,6 +123,12 @@ export function sanitizeCase(raw: unknown, makeId: IdFactory, now: Instant): Cas
   if (months) c.processingMonths = months;
   const uscis = sanitizeUscis(raw.uscis, now);
   if (uscis) c.uscis = uscis;
+  if (isObj(raw.serverTracking) && typeof raw.serverTracking.subscriptionId === 'string') {
+    c.serverTracking = {
+      subscriptionId: raw.serverTracking.subscriptionId,
+      since: instantOr(raw.serverTracking.since, now),
+    };
+  }
   if (raw.demo === true) c.demo = true;
   return c;
 }

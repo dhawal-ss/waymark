@@ -1,6 +1,6 @@
 // Derived views of a case: current status, timeline, milestones, and summaries.
 import { daysBetween, today, type LocalDate } from './dates.ts';
-import { eventInfo, type EventCategory, type EventInfo } from './events.ts';
+import { eventInfo, STATUS_CATEGORY, type EventCategory, type EventInfo } from './events.ts';
 import { eventKey, type Case, type Deadline, type Id, type Instant } from './model.ts';
 import { STATUSES, TONE_ORDER, type StatusKey, type Tone } from './statuses.ts';
 
@@ -28,7 +28,7 @@ export function currentStatus(c: Case, timeZone?: string): StatusKey {
     status: m.status,
   }));
   for (const e of c.uscis?.events ?? []) {
-    const status = eventInfo(e.code).status;
+    const status = eventInfo(e.code, e.text).status;
     if (status)
       candidates.push({ date: localDateOf(e.at, timeZone), rank: 1, order: e.at, status });
   }
@@ -86,7 +86,7 @@ export function timeline(c: Case, timeZone?: string): TimelineItem[] {
       at: e.at,
       date,
       day: daysBetween(c.receivedDate, date),
-      info: eventInfo(e.code),
+      info: eventInfo(e.code, e.text),
       isNew: fresh.has(key),
     });
   }
@@ -116,7 +116,9 @@ export function lastUscisEvent(c: Case): { code: string; at: Instant; info: Even
   const events = c.uscis?.events ?? [];
   let latest = events[0];
   for (const e of events) if (latest && e.at > latest.at) latest = e;
-  return latest ? { code: latest.code, at: latest.at, info: eventInfo(latest.code) } : null;
+  return latest
+    ? { code: latest.code, at: latest.at, info: eventInfo(latest.code, latest.text) }
+    : null;
 }
 
 export function newEventCount(c: Case): number {
@@ -162,23 +164,6 @@ export function waitPosition(
   const elapsed = daysSinceFiling(c, on);
   return { elapsed, total, remaining: total - elapsed, fraction: elapsed / total };
 }
-
-const STATUS_CATEGORY: Record<StatusKey, EventCategory> = {
-  received: 'receipt',
-  rfe: 'evidence',
-  rfe_resp: 'evidence',
-  biometrics: 'checks',
-  review: 'processing',
-  interview: 'interview',
-  transferred: 'processing',
-  approved: 'approved',
-  card_prod: 'card',
-  card_mailed: 'card',
-  delivered: 'card',
-  denied: 'denied',
-  noid: 'evidence',
-  other: 'unknown',
-};
 
 export interface Milestone {
   key: string;

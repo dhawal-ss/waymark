@@ -1,0 +1,25 @@
+# Waymark sync server. Secrets are never stored here; set them with `wrangler secret put`:
+#   USCIS_CLIENT_ID, USCIS_CLIENT_SECRET, RECEIPT_ENC_KEY, RECEIPT_HMAC_KEY
+name = "waymark-sync"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "waymark"
+# Replace with the id printed by `wrangler d1 create waymark`.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[triggers]
+# Every 30 minutes. Each run checks the receipts that are due, within the daily quota.
+crons = ["*/30 * * * *"]
+
+[vars]
+# Sandbox first. Switch to the production base URL only after USCIS approves production access.
+USCIS_BASE_URL = "https://api-int.uscis.gov"
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:4173"
+POLL_INTERVAL_HOURS = "12"
+DAILY_QUOTA = "1000"
+MAX_RECEIPTS_PER_ACCOUNT = "10"
+MAX_ACCOUNTS = "500"
