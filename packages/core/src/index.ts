@@ -20,3 +20,6 @@ export * from './public/processingTimes.ts';
 export * from './public/formStats.ts';
 export * from './ics.ts';
 export * from './news.ts';
+export * from './public/newsClassify.ts';
+export * from './public/newsFederalRegister.ts';
+export * from './public/feed.ts';

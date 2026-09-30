@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test fixture written from the Atom format, not fetched from uscis.gov. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Example forms updates</title>
+  <link rel="self" href="https://www.uscis.gov/forms/updates.atom"/>
+  <link rel="alternate" href="https://www.uscis.gov/forms"/>
+  <updated>2026-03-01T12:00:00Z</updated>
+  <id>tag:uscis.gov,2026:forms-updates</id>
+  <entry>
+    <title type="html">Updated instructions for Form N-400</title>
+    <link rel="self" href="https://www.uscis.gov/forms/updates/n-400-self"/>
+    <link rel="alternate" type="text/html" href="https://www.uscis.gov/forms/updates/n-400-instructions?a=1&amp;b=2"/>
+    <id>tag:uscis.gov,2026:n-400-instructions</id>
+    <published>2026-03-01T08:00:00-05:00</published>
+    <updated>2026-03-01T09:15:00-05:00</updated>
+    <category term="forms" label="Forms update"/>
+    <summary type="html">&lt;p&gt;The instructions for Form N-400 were revised to clarify the &lt;em&gt;civics test&lt;/em&gt; section.&lt;/p&gt;</summary>
+    <source>
+      <title>Original feed title that is not the item title</title>
+      <updated>2020-01-01T00:00:00Z</updated>
+    </source>
+  </entry>
+  <entry>
+    <title>Processing time page updated</title>
+    <link href="https://www.uscis.gov/processing-times"/>
+    <id>tag:uscis.gov,2026:processing-times</id>
+    <updated>2026-02-24T00:00:00Z</updated>
+    <content type="html"><![CDATA[<div>Processing times were refreshed.<br/>Check the <a href="https://egov.uscis.gov/processing-times/">tool</a>.</div>]]></content>
+  </entry>
+  <entry>
+    <title>Entry with an invalid date</title>
+    <link rel="alternate" href="https://www.uscis.gov/forms/updates/bad-date"/>
+    <id>tag:uscis.gov,2026:bad-date</id>
+    <updated>not a date</updated>
+  </entry>
+</feed>
