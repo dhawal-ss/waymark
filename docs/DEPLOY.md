@@ -88,6 +88,69 @@ VITE_SYNC_URL=https://waymark-sync.<your-subdomain>.workers.dev pnpm build
 No names, emails, notes, or USCIS account credentials. Accounts unused for 180 days are deleted
 with their subscriptions; receipts nobody tracks are deleted with their snapshots.
 
+## Public data
+
+The same server collects official public data once a day (Cron `17 13 * * *`) and serves it to
+apps that turn on public data. Set `PUBLIC_DATA_ENABLED = "false"` in `wrangler.toml` to turn it
+off. The job fetches one page per second.
+
+| Dataset          | Source                                         | How it gets in                          |
+| ---------------- | ---------------------------------------------- | --------------------------------------- |
+| Processing times | egov.uscis.gov/processing-times (page data)    | Daily, for the targets you configure    |
+| Visa Bulletin    | travel.state.gov bulletin pages                | Daily: next and current month, backfill |
+| Form data        | uscis.gov quarterly form data files (XLSX/CSV) | You import each quarterly file          |
+
+Set an admin token first:
+
+```sh
+openssl rand -base64 32 | pnpm exec wrangler secret put ADMIN_TOKEN
+```
+
+### Check the official pages
+
+The processing times page data is public but not documented, so check it before relying on it:
+
+```sh
+pnpm --filter @waymark/server data:check I-485 NBC 134A
+```
+
+It fetches the current Visa Bulletin and one processing time page and prints what Waymark reads.
+Form, office, and subtype codes are the ones the egov.uscis.gov processing times page uses in its
+requests for that selection. If the script reports no range, send the printed top-level keys so the
+parser in `packages/core/src/public/processingTimes.ts` can be adjusted.
+
+### Choose processing time targets
+
+```sh
+curl -X POST "$SERVER/v1/admin/pt-targets" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"targets":[{"form":"I-485","office":"NBC","subtype":"134A","label":"Family-based adjustment"}]}'
+```
+
+Each target is checked once a day. A new row is stored only when USCIS publishes a new date or
+value; otherwise the existing row's last seen time moves forward.
+
+### Import quarterly form data
+
+Download the quarterly file from uscis.gov (Immigration and Citizenship Data), then:
+
+```sh
+ADMIN_TOKEN=... pnpm --filter @waymark/server forms:import ~/Downloads/file.xlsx \
+  --quarter "FY2026 Q3" --source "https://www.uscis.gov/..." --server "$SERVER"
+```
+
+Without `--server` the script prints the normalized JSON so you can review it first. Use `--sheet`
+when the form table is not on the first sheet. Values USCIS withholds ("D") are stored as empty.
+
+### Run a job now
+
+```sh
+curl -X POST "$SERVER/v1/admin/run?job=visa-bulletin" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X POST "$SERVER/v1/admin/run?job=processing-times" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+`GET /v1/public/status` shows when each dataset last updated and the last error.
+
 ## Moving to production
 
 1. Request production access for the Case Status API in the USCIS developer portal.

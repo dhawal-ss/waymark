@@ -64,7 +64,8 @@ export function normalizeServerUrl(raw: string): string | null {
 }
 
 async function persist(): Promise<void> {
-  const saved: Saved | undefined = serverSync.token
+  // The address is kept even without an account, because public data needs only the address.
+  const saved: Saved | undefined = serverSync.url
     ? {
         url: serverSync.url,
         token: serverSync.token,
@@ -73,6 +74,15 @@ async function persist(): Promise<void> {
       }
     : undefined;
   await saveSetting(SETTING, saved);
+}
+
+/** Save a server address for public data without creating an account. */
+export async function setServerUrl(rawUrl: string): Promise<boolean> {
+  const url = normalizeServerUrl(rawUrl);
+  if (!url) return false;
+  serverSync.url = url;
+  await persist();
+  return true;
 }
 
 async function api<T>(path: string, init: RequestInit = {}, token = serverSync.token): Promise<T> {
@@ -101,8 +111,8 @@ function remember(subs: SubscriptionView[]): void {
 /** Load saved settings and start pulling. Call once after the data store is ready. */
 export async function initServerSync(): Promise<void> {
   const saved = await loadSetting<Saved>(SETTING);
+  if (saved?.url) serverSync.url = saved.url;
   if (saved?.token && saved.url) {
-    serverSync.url = saved.url;
     serverSync.token = saved.token;
     serverSync.cursor = saved.cursor ?? 0;
     serverSync.environment = saved.environment ?? '';

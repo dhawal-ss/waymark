@@ -38,6 +38,7 @@ export async function fakeSyncServer(
     snapshots: [] as { id: number; receipt: string; case: unknown }[],
     deleted: false,
     requests: [] as string[],
+    public: options.public ?? { times: [], bulletin: [], stats: [] },
   };
   let serial = 0;
   const now = () => new Date().toISOString();
@@ -73,6 +74,108 @@ export async function fakeSyncServer(
     if (req.method() === 'OPTIONS') return json(route, 204);
     if (path === '/v1/health')
       return json(route, 200, { ok: true, environment: 'sandbox', uscisConfigured: true });
+    const pub = state.public;
+    if (path === '/v1/public/status') {
+      return json(route, 200, {
+        enabled: true,
+        datasets: [
+          {
+            dataset: 'processing-times',
+            last_run_at: now(),
+            last_success_at: now(),
+            last_error: null,
+          },
+          {
+            dataset: 'visa-bulletin',
+            last_run_at: now(),
+            last_success_at: now(),
+            last_error: null,
+          },
+        ],
+      });
+    }
+    if (path === '/v1/public/processing-times') {
+      return json(route, 200, {
+        source: 'https://egov.uscis.gov/processing-times/',
+        items: pub.times.map((t) => {
+          const last = t.points.at(-1);
+          return {
+            form: t.form,
+            office: t.office,
+            subtype: t.subtype,
+            label: t.label,
+            months: last?.months ?? null,
+            lowMonths: null,
+            publishedDate: last?.publishedDate ?? null,
+            dateFromSource: true,
+            lastSeenAt: now(),
+            lastCheckedAt: now(),
+            lastError: null,
+          };
+        }),
+      });
+    }
+    if (path === '/v1/public/processing-times/history') {
+      const q = url.searchParams;
+      const t = pub.times.find(
+        (x) =>
+          x.form === q.get('form') &&
+          x.office === q.get('office') &&
+          x.subtype === (q.get('subtype') ?? ''),
+      );
+      return json(route, 200, {
+        source: '',
+        points: (t?.points ?? []).map((p) => ({
+          ...p,
+          dateFromSource: true,
+          lowMonths: null,
+          firstSeenAt: now(),
+          lastSeenAt: now(),
+        })),
+      });
+    }
+    if (path === '/v1/public/visa-bulletin/options') {
+      return json(route, 200, {
+        months: [...new Set(pub.bulletin.flatMap((b) => b.points.map((p) => p.month)))].sort(),
+        options: pub.bulletin.map(({ chart, preference, category, country }) => ({
+          chart,
+          preference,
+          category,
+          country,
+        })),
+      });
+    }
+    if (path === '/v1/public/visa-bulletin') {
+      const q = url.searchParams;
+      const b = pub.bulletin.find(
+        (x) =>
+          x.chart === q.get('chart') &&
+          x.preference === q.get('preference') &&
+          x.category === q.get('category') &&
+          x.country === q.get('country'),
+      );
+      return json(route, 200, {
+        points: (b?.points ?? []).map((p) => ({
+          ...p,
+          sourceUrl: 'https://travel.state.gov/',
+          fetchedAt: now(),
+        })),
+      });
+    }
+    if (path === '/v1/public/form-stats') {
+      const form = url.searchParams.get('form');
+      if (!form) return json(route, 200, { forms: [...new Set(pub.stats.map((r) => r.form))] });
+      return json(route, 200, {
+        form,
+        records: pub.stats
+          .filter((r) => r.form === form)
+          .map((r) => ({
+            ...r,
+            sourceUrl: 'https://www.uscis.gov/tools/reports-and-studies',
+            importedAt: now(),
+          })),
+      });
+    }
     if (path === '/v1/accounts' && req.method() === 'POST') {
       state.token = `token-${Math.random().toString(36).slice(2)}`;
       return json(route, 201, { accountId: 'acct_1', token: state.token });

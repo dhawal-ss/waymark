@@ -11,7 +11,7 @@ test('exports data as a Waymark JSON file', async ({ page }) => {
   ]);
   expect(download.suggestedFilename()).toMatch(/^waymark-export-\d{4}-\d{2}-\d{2}\.json$/);
   const file = JSON.parse(readFileSync((await download.path())!, 'utf8'));
-  expect(file).toMatchObject({ app: 'waymark', schema: 2 });
+  expect(file).toMatchObject({ app: 'waymark', schema: 3 });
   expect(file.data.cases).toHaveLength(3);
 });
 

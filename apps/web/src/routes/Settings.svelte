@@ -12,6 +12,7 @@
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import SeedPicker from '../lib/ui/SeedPicker.svelte';
   import ServerSyncSettings from '../lib/ui/ServerSyncSettings.svelte';
+  import PublicDataSettings from '../lib/ui/PublicDataSettings.svelte';
   import { disableServerSync, syncEnabled } from '../lib/serverSync.svelte';
   import Switch from '../lib/ui/Switch.svelte';
 
@@ -148,6 +149,8 @@
 </section>
 
 <ServerSyncSettings />
+
+<PublicDataSettings />
 
 <section class="group" aria-labelledby="data-title">
   <h2 id="data-title" class="t-title">Data</h2>

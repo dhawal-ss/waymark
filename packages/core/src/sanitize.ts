@@ -164,7 +164,19 @@ export function sanitizeSeries(raw: unknown, makeId: IdFactory): Series | null {
     .map(sanitizePoint)
     .filter((p): p is SeriesPoint => p !== null)
     .sort((a, b) => a.date.localeCompare(b.date));
-  return { id: asId(raw.id, makeId), name, demo: asBool(raw.demo), points };
+  const series: Series = { id: asId(raw.id, makeId), name, demo: asBool(raw.demo), points };
+  const src = raw.source;
+  if (isObj(src) && src.kind === 'processing-times' && asString(src.form) && asString(src.office)) {
+    series.source = {
+      kind: 'processing-times',
+      form: asString(src.form),
+      office: asString(src.office),
+      subtype: asString(src.subtype),
+      label: asString(src.label),
+      updatedAt: toInstant(src.updatedAt) ?? new Date(0).toISOString(),
+    };
+  }
+  return series;
 }
 
 export function sanitizeCutoff(raw: unknown): Cutoff | null {
@@ -185,6 +197,24 @@ export function sanitizeVisa(raw: unknown): VisaData {
     demo: asBool(v.demo),
   };
   if (isLocalDate(v.priorityDate)) visa.priorityDate = v.priorityDate;
+  const src = v.source;
+  if (
+    isObj(src) &&
+    src.kind === 'visa-bulletin' &&
+    (src.chart === 'final' || src.chart === 'filing') &&
+    (src.preference === 'family' || src.preference === 'employment') &&
+    asString(src.category) &&
+    asString(src.country)
+  ) {
+    visa.source = {
+      kind: 'visa-bulletin',
+      chart: src.chart,
+      preference: src.preference,
+      category: asString(src.category),
+      country: asString(src.country),
+      updatedAt: toInstant(src.updatedAt) ?? new Date(0).toISOString(),
+    };
+  }
   return visa;
 }
 
@@ -208,6 +238,7 @@ export function sanitizePrefs(raw: unknown): Prefs {
       typeof p.seed === 'string' && HEX.test(p.seed) ? p.seed.toLowerCase() : DEFAULT_PREFS.seed,
     maskReceipts: asBool(p.maskReceipts),
     timeZone: typeof p.timeZone === 'string' && isTimeZone(p.timeZone) ? p.timeZone : '',
+    publicData: asBool(p.publicData),
   };
 }
 

@@ -15,7 +15,10 @@ const approved = officialCase(RECEIPT, [
 
 async function turnOn(page: import('@playwright/test').Page) {
   await page.goto('./#/settings');
-  await page.getByLabel('Sync server address').fill(SYNC_URL);
+  await page
+    .getByRole('region', { name: 'Server sync' })
+    .getByLabel('Sync server address')
+    .fill(SYNC_URL);
   await page.getByRole('button', { name: 'Turn on server sync' }).click();
   await expect(page.getByText(/^On\. Server/)).toBeVisible();
 }
@@ -30,14 +33,20 @@ test('is off by default and explains what it sends', async ({ page }) => {
 
 test('rejects insecure addresses and reports an unreachable server', async ({ page }) => {
   await page.goto('./#/settings');
-  await page.getByLabel('Sync server address').fill('http://sync.example.org');
+  await page
+    .getByRole('region', { name: 'Server sync' })
+    .getByLabel('Sync server address')
+    .fill('http://sync.example.org');
   await page.getByRole('button', { name: 'Turn on server sync' }).click();
   await expect(page.getByRole('alert')).toHaveText(
     'Enter the server address starting with https://.',
   );
 
   await page.route('https://down.test/**', (route) => route.abort());
-  await page.getByLabel('Sync server address').fill('https://down.test');
+  await page
+    .getByRole('region', { name: 'Server sync' })
+    .getByLabel('Sync server address')
+    .fill('https://down.test');
   await page.getByRole('button', { name: 'Turn on server sync' }).click();
   await expect(page.getByRole('alert')).toContainText('The sync server did not respond');
 });

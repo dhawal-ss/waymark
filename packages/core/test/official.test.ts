@@ -152,6 +152,52 @@ describe('official events in the core pipeline', () => {
     expect(data.cases[0]!.serverTracking).toEqual({ subscriptionId: 'sub_1', since: NOW });
   });
 
+  it('keeps data sources and drops invalid ones', () => {
+    const data = sanitizeData(
+      {
+        series: [
+          {
+            name: 'Linked',
+            points: [],
+            source: {
+              kind: 'processing-times',
+              form: 'I-485',
+              office: 'NBC',
+              subtype: '134A',
+              label: 'Family',
+              updatedAt: NOW,
+            },
+          },
+          { name: 'Bad source', points: [], source: { kind: 'other' } },
+        ],
+        visa: {
+          cutoffs: [],
+          source: {
+            kind: 'visa-bulletin',
+            chart: 'final',
+            preference: 'employment',
+            category: 'EB2',
+            country: 'INDIA',
+            updatedAt: NOW,
+          },
+        },
+        prefs: { publicData: true },
+      },
+      idFactory(),
+      NOW,
+    );
+    expect(data.series[0]!.source).toMatchObject({ form: 'I-485', subtype: '134A' });
+    expect(data.series[1]!.source).toBeUndefined();
+    expect(data.visa.source).toMatchObject({ chart: 'final', category: 'EB2', country: 'INDIA' });
+    expect(data.prefs.publicData).toBe(true);
+    const bad = sanitizeData(
+      { visa: { cutoffs: [], source: { kind: 'visa-bulletin', chart: 'x' } } },
+      idFactory(),
+      NOW,
+    );
+    expect(bad.visa.source).toBeUndefined();
+  });
+
   it('migrates schema 1 exports', () => {
     expect(migrateData({ cases: [] }, 1)).toEqual({ cases: [] });
     const text = JSON.stringify({ app: 'waymark', schema: 1, data: { cases: [] } });

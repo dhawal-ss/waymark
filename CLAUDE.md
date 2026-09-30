@@ -36,12 +36,16 @@ packages/core    Pure domain logic, no DOM, with fixtures in test/fixtures
   src/transfer.ts  Export files, schema migrations, v0.2 import
   src/csv.ts, series.ts, projection.ts, receipt.ts, dates.ts, demo.ts
   src/official.ts  Official Case Status API responses to ParsedCase ("CS:" events with status text)
+  src/public/      Visa Bulletin, processing time, and quarterly form data parsers (no DOM)
 packages/theme   OKLCH palettes, Material color roles, contrast, spring curves
 apps/server      Optional sync server: Hono on Cloudflare Workers, D1, Cron (see docs/DEPLOY.md)
   src/uscis.ts     OAuth client credentials and Case Status API client
   src/checker.ts   Polling within quota, change hashing, snapshots
   src/app.ts       HTTP API (anonymous accounts, subscriptions, updates)
   src/crypto.ts    AES-GCM at rest, HMAC lookup, token hashing
+  src/publicJobs.ts, publicStore.ts, publicRoutes.ts  Daily public data job, D1, public and admin API
+  src/xlsx.ts      Dependency-free XLSX reader for quarterly files
+  scripts/         sandbox-check, data-check, import-form-stats (run with --experimental-strip-types)
   migrations/      D1 schema; add a new numbered file for every change
 apps/web         Svelte 5 + Vite PWA
   src/lib/db.ts    IndexedDB schema versions and upgrades
@@ -49,6 +53,7 @@ apps/web         Svelte 5 + Vite PWA
   src/lib/actions.ts  Domain actions; every change goes through mutate()
   src/lib/sync.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
   src/lib/serverSync.svelte.ts  Optional server sync client (off by default)
+  src/lib/publicData.ts  Public data client (off by default); linked series and cutoffs
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
   src/routes       Pages; all but Cases and Settings are lazy-loaded
@@ -97,5 +102,9 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
   `.dev.vars`. Never log receipt numbers or tokens. Server results reach the app as `ParsedCase`
   and go through `mergeImport`, like manual imports.
 - The sync key is stored with `saveSetting` outside AppData so exports never contain it.
+- Public data comes only from official sources (egov.uscis.gov, travel.state.gov, uscis.gov files).
+  Keep parsers tolerant and report problems in plain language; never guess values.
+- Server scripts are run by Node with type stripping: import only types from files that use
+  extensionless imports, or use explicit `.ts` extensions.
 
 Keep this file, `README.md`, and `docs/ROADMAP.md` current as the project changes.

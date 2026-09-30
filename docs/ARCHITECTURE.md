@@ -72,6 +72,17 @@ page is a lazy chunk.
   `mergeImport`. Official events carry status text and use `CS:` codes, so they sit in the same
   timeline as ELIS events from manual imports.
 
+## Public data (optional)
+
+- Parsers live in `packages/core/src/public` and have no DOM dependency, so they run in the Worker,
+  in Node scripts, and in tests. The Visa Bulletin parser reads tables with a small HTML table
+  extractor and decides the chart from the uppercase section heading before each table.
+- The daily job stores processing times as one row per distinct published value; unchanged checks
+  only move `last_seen_at`. Visa Bulletin months are replaced as a whole when fetched. Quarterly
+  form data is imported by a maintainer from the official files.
+- The app opts in through a preference. Linked series and cutoffs carry a `source` and are replaced
+  from the server when Insights opens; unlinking keeps the values and makes them editable.
+
 ## USCIS import
 
 - `parseUscisJson` tries `JSON.parse`, then falls back to a brace scanner that finds top-level

@@ -48,6 +48,13 @@ the device; the server stores them encrypted and keeps results only when they ch
 [docs/DEPLOY.md](docs/DEPLOY.md) to run one. Until USCIS approves production access, the server
 uses the sandbox, which has test data only.
 
+### Optional public data
+
+With public data turned on in Settings, Insights can follow official processing times from
+egov.uscis.gov, load Visa Bulletin cutoffs from travel.state.gov, and chart quarterly USCIS form
+data. The sync server collects these once a day; requests from the app name only the form or
+category being viewed. Manual entry always works without it.
+
 ## Structure
 
 | Path             | Purpose                                                             |

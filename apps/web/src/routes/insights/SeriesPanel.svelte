@@ -11,6 +11,14 @@
   import { todayLocal } from '../../lib/actions';
   import { formatDate, plural } from '../../lib/format';
   import { mutate, newId, nowInstant, store } from '../../lib/stores/data.svelte';
+  import {
+    fetchProcessingTimes,
+    fetchTimeHistory,
+    publicDataOn,
+    timePoints,
+    type LatestTime,
+  } from '../../lib/publicData';
+  import { relativeTime } from '../../lib/format';
   import Button from '../../lib/ui/Button.svelte';
   import ButtonGroup from '../../lib/ui/ButtonGroup.svelte';
   import FilterChip from '../../lib/ui/FilterChip.svelte';
@@ -23,7 +31,80 @@
 
   let range = $state<Range>('1y');
   let hidden = $state<string[]>([]);
-  let sheet = $state<null | 'series' | 'point' | 'csv'>(null);
+  let sheet = $state<null | 'series' | 'point' | 'csv' | 'uscis'>(null);
+
+  // Linking a series to official processing times.
+  let latest = $state<LatestTime[]>([]);
+  let uscisForm = $state('');
+  let uscisChoice = $state('');
+  let uscisError = $state('');
+  let uscisLoading = $state(false);
+  const uscisForms = $derived([...new Set(latest.map((t) => t.form))].sort());
+  const uscisOptions = $derived(latest.filter((t) => t.form === uscisForm));
+  const keyOf = (t: { form: string; office: string; subtype: string }) =>
+    `${t.form}|${t.office}|${t.subtype}`;
+
+  async function openUscis() {
+    sheet = 'uscis';
+    uscisError = '';
+    uscisLoading = true;
+    try {
+      latest = (await fetchProcessingTimes()).items;
+      const caseForms = new Set(store.data.cases.map((c) => c.form as string));
+      uscisForm = latest.find((t) => caseForms.has(t.form))?.form ?? latest[0]?.form ?? '';
+      uscisChoice = '';
+      if (latest.length === 0)
+        uscisError = 'The server has no processing times yet. It checks official pages once a day.';
+    } catch (e) {
+      uscisError = e instanceof Error ? e.message : 'Loading processing times failed.';
+    } finally {
+      uscisLoading = false;
+    }
+  }
+
+  async function addLinked(event: SubmitEvent) {
+    event.preventDefault();
+    const t = uscisOptions.find((x) => keyOf(x) === uscisChoice);
+    if (!t) {
+      uscisError = 'Choose an office and category.';
+      return;
+    }
+    try {
+      const { points } = await fetchTimeHistory(t.form, t.office, t.subtype);
+      const name = `${t.form} ${t.office}${t.label ? `, ${t.label}` : ''}`;
+      mutate(
+        (d) =>
+          d.series.push({
+            id: newId(),
+            name,
+            demo: false,
+            points: timePoints(points),
+            source: {
+              kind: 'processing-times',
+              form: t.form,
+              office: t.office,
+              subtype: t.subtype,
+              label: t.label,
+              updatedAt: nowInstant(),
+            },
+          }),
+        { undo: `Added ${name} from USCIS processing times.` },
+      );
+      sheet = null;
+    } catch (e) {
+      uscisError = e instanceof Error ? e.message : 'Loading the history failed.';
+    }
+  }
+
+  function unlink(id: string) {
+    mutate(
+      (d) => {
+        const s = d.series.find((x) => x.id === id);
+        if (s) delete s.source;
+      },
+      { undo: 'Stopped updating the series. Its points stay.' },
+    );
+  }
 
   const series = $derived(store.data.series);
   const visible = $derived(series.filter((s) => !hidden.includes(s.id)));
@@ -46,7 +127,7 @@
 
   function open(kind: 'series' | 'point' | 'csv') {
     name = '';
-    target = series[0]?.id ?? '';
+    target = series.find((x) => !x.source)?.id ?? '';
     date = todayLocal();
     value = '';
     csv = '';
@@ -149,8 +230,11 @@
     });
   }
 
+  // Linked series take their points from the server, so manual entry targets only the others.
   const seriesOptions = $derived(
-    series.map((s) => ({ value: s.id, label: s.demo ? `${s.name} (demo)` : s.name })),
+    series
+      .filter((s) => !s.source)
+      .map((s) => ({ value: s.id, label: s.demo ? `${s.name} (demo)` : s.name })),
   );
 </script>
 
@@ -171,7 +255,16 @@
       <Button icon="add" onclick={() => open('series')}>New series</Button>
       <Button variant="tonal" icon="content_paste" onclick={() => open('csv')}>Paste CSV</Button>
       <Button variant="text" onclick={loadDemo}>Load demo series</Button>
+      {#if publicDataOn()}
+        <Button variant="outlined" icon="download" onclick={openUscis}>Add from USCIS data</Button>
+      {/if}
     </div>
+    {#if !publicDataOn()}
+      <p class="t-small muted">
+        To follow official processing times automatically, turn on public data in
+        <a href="#/settings">Settings</a>.
+      </p>
+    {/if}
   {:else}
     <div class="row" role="group" aria-label="Series shown on the chart">
       {#each series as s (s.id)}
@@ -216,19 +309,50 @@
       <Button variant="tonal" icon="add" onclick={() => open('point')}>Add point</Button>
       <Button variant="outlined" icon="content_paste" onclick={() => open('csv')}>Paste CSV</Button>
       <Button variant="text" icon="add" onclick={() => open('series')}>New series</Button>
+      {#if publicDataOn()}
+        <Button variant="outlined" icon="download" onclick={openUscis}>Add from USCIS data</Button>
+      {/if}
     </div>
+    {#if visible.some((s) => s.source)}
+      <p class="t-small muted">
+        Linked series follow the time USCIS publishes for 80% of cases at
+        <a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noopener noreferrer"
+          >egov.uscis.gov</a
+        >, one point per publication date, collected daily by the sync server.
+      </p>
+    {/if}
     <details class="manage">
       <summary class="t-label">Edit series and points</summary>
       {#each series as s (s.id)}
         <div class="series-edit">
           <div class="series-head">
             <span class="t-title">{s.name}{s.demo ? ' (demo)' : ''}</span>
+            {#if s.source}
+              <Button variant="text" onclick={() => unlink(s.id)}>Stop updating</Button>
+            {/if}
             <Button variant="text" icon="delete" onclick={() => deleteSeries(s.id)}
               >Delete series</Button
             >
           </div>
+          {#if s.source}
+            <p class="t-small muted">
+              Updates from USCIS processing times ({s.source.form}, {s.source.office}{s.source
+                .subtype
+                ? `, ${s.source.subtype}`
+                : ''}). Last updated {relativeTime(s.source.updatedAt)}. Points cannot be edited
+              while linked.
+            </p>
+          {/if}
           {#if s.points.length === 0}
             <p class="t-small muted">No points.</p>
+          {:else if s.source}
+            <ul class="points" role="list">
+              {#each [...s.points].reverse() as p (p.date)}
+                <li class="linked">
+                  <span>{formatDate(p.date)}</span><span>{p.value} months</span>
+                </li>
+              {/each}
+            </ul>
           {:else}
             <ul class="points" role="list">
               {#each [...s.points].reverse() as p (p.date)}
@@ -250,7 +374,48 @@
   {/if}
 </section>
 
-{#if sheet === 'series'}
+{#if sheet === 'uscis'}
+  <Sheet open title="Add from USCIS data" onclose={() => (sheet = null)}>
+    <form id="uscis-form" class="form" novalidate onsubmit={addLinked}>
+      {#if uscisLoading}
+        <p class="muted">Loading processing times from the sync server.</p>
+      {:else if latest.length > 0}
+        <Select
+          label="Form"
+          bind:value={uscisForm}
+          options={uscisForms.map((f) => ({ value: f, label: f }))}
+        />
+        <fieldset class="choices">
+          <legend class="t-label">Office and category</legend>
+          {#each uscisOptions as t (keyOf(t))}
+            <label class="choice">
+              <input type="radio" name="uscis-choice" value={keyOf(t)} bind:group={uscisChoice} />
+              <span>
+                <span class="t-body"
+                  >{t.office}{t.label ? `, ${t.label}` : t.subtype ? `, ${t.subtype}` : ''}</span
+                >
+                <span class="t-small muted">
+                  {t.months === null
+                    ? t.lastError
+                      ? `Not available: ${t.lastError}`
+                      : 'Not checked yet'
+                    : `${t.months} months${t.publishedDate ? `, published ${formatDate(t.publishedDate)}` : ''}`}
+                </span>
+              </span>
+            </label>
+          {/each}
+        </fieldset>
+      {/if}
+      {#if uscisError}<p class="errors" role="alert">{uscisError}</p>{/if}
+    </form>
+    {#snippet actions()}
+      <Button variant="text" onclick={() => (sheet = null)}>Cancel</Button>
+      <Button type="submit" form="uscis-form" disabled={uscisLoading || !uscisChoice}
+        >Add series</Button
+      >
+    {/snippet}
+  </Sheet>
+{:else if sheet === 'series'}
   <Sheet open title="New series" onclose={() => (sheet = null)}>
     <form id="series-form" novalidate onsubmit={createSeries}>
       <TextField label="Name" bind:value={name} error={submitted ? nameError : undefined} />
@@ -353,6 +518,44 @@
     gap: 8px;
     border-bottom: 1px solid var(--outline-variant);
     font-variant-numeric: tabular-nums;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .choices legend {
+    margin-bottom: 8px;
+    color: var(--on-surface-variant);
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 8px 12px;
+    border-radius: var(--shape-m);
+    cursor: pointer;
+  }
+  .choice:hover {
+    background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  }
+  .choice input {
+    width: 20px;
+    height: 20px;
+    margin: 2px 0 0;
+    accent-color: var(--primary);
+  }
+  .choice > span {
+    display: flex;
+    flex-direction: column;
+  }
+  .points li.linked {
+    grid-template-columns: 1fr auto;
+    min-height: 40px;
   }
   .errors {
     margin: 0;

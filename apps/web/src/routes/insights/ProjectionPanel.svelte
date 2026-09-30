@@ -11,6 +11,18 @@
   import { formatDate, formatMonth, plural } from '../../lib/format';
   import { mutate, store } from '../../lib/stores/data.svelte';
   import Button from '../../lib/ui/Button.svelte';
+  import ButtonGroup from '../../lib/ui/ButtonGroup.svelte';
+  import Select from '../../lib/ui/Select.svelte';
+  import { relativeTime } from '../../lib/format';
+  import {
+    bulletinCutoffs,
+    fetchBulletin,
+    fetchBulletinOptions,
+    publicDataOn,
+    type BulletinOption,
+  } from '../../lib/publicData';
+  import { nowInstant } from '../../lib/stores/data.svelte';
+  import { BULLETIN_CATEGORY_LABELS, BULLETIN_COUNTRY_LABELS } from '@waymark/core';
   import Checkbox from '../../lib/ui/Checkbox.svelte';
   import IconButton from '../../lib/ui/IconButton.svelte';
   import LineChart from '../../lib/ui/LineChart.svelte';
@@ -62,7 +74,90 @@
     });
   }
 
-  let sheet = $state<null | 'cutoff' | 'csv'>(null);
+  let sheet = $state<null | 'cutoff' | 'csv' | 'bulletin'>(null);
+
+  // Loading cutoffs from the Visa Bulletin.
+  let options = $state<BulletinOption[]>([]);
+  let chart = $state<'final' | 'filing'>('final');
+  let preference = $state<'family' | 'employment'>('employment');
+  let bCategory = $state('');
+  let bCountry = $state('');
+  let bError = $state('');
+  let bLoading = $state(false);
+  const catLabel = (c: string) => BULLETIN_CATEGORY_LABELS[c] ?? c;
+  const countryLabel = (c: string) =>
+    BULLETIN_COUNTRY_LABELS[c] ?? c.replace(/_/g, ' ').toLowerCase();
+  const categories = $derived([
+    ...new Set(
+      options
+        .filter((o) => o.chart === chart && o.preference === preference)
+        .map((o) => o.category),
+    ),
+  ]);
+  const countries = $derived([
+    ...new Set(
+      options
+        .filter((o) => o.chart === chart && o.preference === preference && o.category === bCategory)
+        .map((o) => o.country),
+    ),
+  ]);
+  $effect(() => {
+    if (!categories.includes(bCategory)) bCategory = categories[0] ?? '';
+  });
+  $effect(() => {
+    if (!countries.includes(bCountry))
+      bCountry = countries.includes('ALL') ? 'ALL' : (countries[0] ?? '');
+  });
+
+  async function openBulletin() {
+    sheet = 'bulletin';
+    bError = '';
+    bLoading = true;
+    try {
+      options = (await fetchBulletinOptions()).options;
+      if (options.length === 0)
+        bError = 'The server has no Visa Bulletin data yet. It checks travel.state.gov once a day.';
+    } catch (e) {
+      bError = e instanceof Error ? e.message : 'Loading the Visa Bulletin failed.';
+    } finally {
+      bLoading = false;
+    }
+  }
+
+  async function loadBulletin(event: SubmitEvent) {
+    event.preventDefault();
+    if (!bCategory || !bCountry) return;
+    const source = { chart, preference, category: bCategory, country: bCountry };
+    try {
+      const { points } = await fetchBulletin(source);
+      const { cutoffs, unavailable } = bulletinCutoffs(points);
+      const label = `${catLabel(bCategory)}, ${countryLabel(bCountry)}`;
+      mutate(
+        (d) => {
+          d.visa.cutoffs = cutoffs;
+          d.visa.category = label;
+          d.visa.demo = false;
+          d.visa.source = { kind: 'visa-bulletin', ...source, updatedAt: nowInstant() };
+        },
+        {
+          undo: `Loaded ${plural(cutoffs.length, 'month')} from the Visa Bulletin${unavailable > 0 ? `; ${plural(unavailable, 'month')} marked unavailable were left out` : ''}.`,
+        },
+      );
+      category = label;
+      sheet = null;
+    } catch (e) {
+      bError = e instanceof Error ? e.message : 'Loading the cutoffs failed.';
+    }
+  }
+
+  function unlinkBulletin() {
+    mutate(
+      (d) => {
+        delete d.visa.source;
+      },
+      { undo: 'Stopped updating cutoffs. They stay and can be edited.' },
+    );
+  }
   let month = $state('');
   let cutoffDate = $state('');
   let isC = $state(false);
@@ -213,7 +308,25 @@
     {/if}
   {/if}
 
+  {#if visa.source}
+    <p class="t-small muted source">
+      Cutoffs from the
+      <a
+        href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html"
+        target="_blank"
+        rel="noopener noreferrer">Visa Bulletin</a
+      >, {visa.source.chart === 'final' ? 'final action dates' : 'dates for filing'}, collected by
+      the sync server. Last updated {relativeTime(visa.source.updatedAt)}. Manual changes are
+      replaced when the data updates.
+      <Button variant="text" onclick={unlinkBulletin}>Stop updating</Button>
+    </p>
+  {/if}
+
   <div class="row">
+    {#if publicDataOn()}
+      <Button variant="tonal" icon="download" onclick={openBulletin}>Load from Visa Bulletin</Button
+      >
+    {/if}
     <Button variant="tonal" icon="add" onclick={() => openSheet('cutoff')}>Add cutoff</Button>
     <Button variant="outlined" icon="content_paste" onclick={() => openSheet('csv')}
       >Paste CSV</Button
@@ -240,7 +353,50 @@
   {/if}
 </section>
 
-{#if sheet === 'cutoff'}
+{#if sheet === 'bulletin'}
+  <Sheet open title="Load from Visa Bulletin" onclose={() => (sheet = null)}>
+    <form id="bulletin-form" class="form" novalidate onsubmit={loadBulletin}>
+      {#if bLoading}
+        <p class="muted">Loading Visa Bulletin categories from the sync server.</p>
+      {:else if options.length > 0}
+        <ButtonGroup
+          label="Chart"
+          bind:value={chart}
+          options={[
+            { value: 'final', label: 'Final action' },
+            { value: 'filing', label: 'Dates for filing' },
+          ]}
+        />
+        <Select
+          label="Preference"
+          bind:value={preference}
+          options={[
+            { value: 'employment', label: 'Employment-based' },
+            { value: 'family', label: 'Family-sponsored' },
+          ]}
+        />
+        <Select
+          label="Category"
+          bind:value={bCategory}
+          options={categories.map((c) => ({ value: c, label: catLabel(c) }))}
+        />
+        <Select
+          label="Country of chargeability"
+          bind:value={bCountry}
+          options={countries.map((c) => ({ value: c, label: countryLabel(c) }))}
+        />
+        <p class="t-small muted">Loading replaces the cutoffs below. You can undo right after.</p>
+      {/if}
+      {#if bError}<ul class="errors" role="alert"><li>{bError}</li></ul>{/if}
+    </form>
+    {#snippet actions()}
+      <Button variant="text" onclick={() => (sheet = null)}>Cancel</Button>
+      <Button type="submit" form="bulletin-form" disabled={bLoading || !bCategory || !bCountry}
+        >Load cutoffs</Button
+      >
+    {/snippet}
+  </Sheet>
+{:else if sheet === 'cutoff'}
   <Sheet open title="Add cutoff" onclose={() => (sheet = null)}>
     <form id="cutoff-form" class="form" novalidate onsubmit={addCutoff}>
       <TextField

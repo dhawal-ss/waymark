@@ -76,11 +76,23 @@ export interface SeriesPoint {
   value: number;
 }
 
+/** Official processing time page a series follows. Points then come from the sync server. */
+export interface SeriesSource {
+  kind: 'processing-times';
+  form: string;
+  office: string;
+  subtype: string;
+  label: string;
+  /** When Waymark last updated the points from the server. */
+  updatedAt: Instant;
+}
+
 export interface Series {
   id: Id;
   name: string;
   demo: boolean;
   points: SeriesPoint[];
+  source?: SeriesSource;
 }
 
 /** A Visa Bulletin cutoff for one month. `cutoff` is a date or "C" for current. */
@@ -89,11 +101,22 @@ export interface Cutoff {
   cutoff: LocalDate | 'C';
 }
 
+/** Visa Bulletin chart the cutoffs follow. Cutoffs then come from the sync server. */
+export interface VisaSource {
+  kind: 'visa-bulletin';
+  chart: 'final' | 'filing';
+  preference: 'family' | 'employment';
+  category: string;
+  country: string;
+  updatedAt: Instant;
+}
+
 export interface VisaData {
   priorityDate?: LocalDate;
   category: string;
   cutoffs: Cutoff[];
   demo: boolean;
+  source?: VisaSource;
 }
 
 export interface Fee {
@@ -111,6 +134,8 @@ export interface Prefs {
   maskReceipts: boolean;
   /** IANA time zone override. Empty uses the device zone. */
   timeZone: string;
+  /** Load public data (processing times, Visa Bulletin, form data) from the sync server. */
+  publicData: boolean;
 }
 
 export interface AppData {
@@ -132,6 +157,7 @@ export const DEFAULT_PREFS: Prefs = {
   seed: '#14b8a6',
   maskReceipts: false,
   timeZone: '',
+  publicData: false,
 };
 
 export function emptyData(): AppData {

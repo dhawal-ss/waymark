@@ -14,7 +14,7 @@ import {
 } from './sanitize.ts';
 import { isStatusKey } from './statuses.ts';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const V02_STORAGE_KEY = 'waymark:v1';
 
 export interface ExportFile {
@@ -36,6 +36,9 @@ export const MIGRATIONS: Record<
   // 1 to 2: events may carry status text and cases may carry serverTracking. Both are optional,
   // so schema 1 data is valid as is.
   1: (data) => data,
+  // 2 to 3: series and Visa Bulletin data may name an official source; prefs gain publicData.
+  // All optional, so schema 2 data is valid as is.
+  2: (data) => data,
 };
 
 export function migrateData(data: Record<string, unknown>, from: number): Record<string, unknown> {

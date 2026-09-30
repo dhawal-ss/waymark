@@ -121,6 +121,7 @@ describe('v0.2 import', () => {
       seed: '#e0457b',
       maskReceipts: true,
       timeZone: '',
+      publicData: false,
     });
   });
 

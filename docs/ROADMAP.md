@@ -71,10 +71,27 @@ Not done, needs you:
   `submittedDate`, `modifiedDate`, `current_case_status_text_en`, `hist_case_status`).
 - Request production access from USCIS when ready.
 
-## Phase 4: public data
+## Phase 4: public data (done, in review)
 
-Daily processing time snapshots with source timestamps, quarterly form data by form and office,
-Visa Bulletin parser. Charts use these with manual entry as a fallback.
+- [x] Core parsers: Visa Bulletin HTML (final action and dates for filing, family and employment,
+      C and U, category and country normalization), processing time page data (tolerant of
+      nesting, units to months, publication dates), quarterly form data (header detection, merged
+      cells, totals skipped, withheld values empty), fiscal quarter helpers
+- [x] Server: D1 tables for processing times (a row per published value, last seen moved daily),
+      Visa Bulletin cells, form statistics, and dataset run status; daily Cron job, one page per
+      second; public read endpoints with caching; admin API for targets, imports, and manual runs
+- [x] XLSX reader with no dependencies, `forms:import` and `data:check` scripts
+- [x] Web: public data off by default; series linked to USCIS processing times refresh when
+      Insights opens; Visa Bulletin cutoffs load into the projection; quarterly form data panel
+      with chart and table; manual entry stays available; data schema 3 with migration
+
+Not done, needs you:
+
+- Run `data:check` on your machine to confirm the processing times page data and a live Visa
+  Bulletin parse. Both parsers were built from the page layouts and tested on synthetic fixtures,
+  because this container cannot reach uscis.gov or travel.state.gov.
+- Choose processing time targets (form, office, subtype codes) and import the quarterly form data
+  files you want (docs/DEPLOY.md).
 
 ## Phase 5: updates and alerts
 
