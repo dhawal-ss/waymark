@@ -5,12 +5,10 @@
     caseSummaryLine,
     closedByUscis,
     FORM_NAMES,
-    CATEGORY_LABELS,
     currentStatus,
     daysSinceFiling,
     milestones as buildMilestones,
     newEventCount,
-    OFFICIAL_CODE_PREFIX,
     processingDays,
     STATUS_KEYS,
     STATUSES,
@@ -50,6 +48,8 @@
   import TextArea from '../lib/ui/TextArea.svelte';
   import TextField from '../lib/ui/TextField.svelte';
   import WavyProgress from '../lib/ui/WavyProgress.svelte';
+  import CaseActivity from './case/CaseActivity.svelte';
+  import EventRow from './case/EventRow.svelte';
 
   let { id }: { id: string } = $props();
 
@@ -384,6 +384,8 @@
     </div>
   </section>
 
+  <CaseActivity {c} {today} {zone} tone={info.tone} />
+
   <section class="panel" aria-labelledby="timeline-title">
     <h2 id="timeline-title" class="t-title">Timeline</h2>
     {#if items.length === 0}
@@ -393,18 +395,7 @@
         {#each items as item (item.key)}
           <li class:fresh={item.kind === 'uscis' && item.isNew}>
             {#if item.kind === 'uscis'}
-              <div class="t-main">
-                <span class="t-body">{item.info.label}</span>
-                {#if item.isNew}<Pill label="New" tone="new" />{/if}
-              </div>
-              <span class="t-small muted">
-                {formatDateTime(item.at, zone)}. Day {item.day}.
-                <!-- Official API statuses get made-up "CS:" codes; only real USCIS codes show. -->
-                {#if !item.code.startsWith(OFFICIAL_CODE_PREFIX)}<span class="t-mono"
-                    >{item.code}</span
-                  >,{/if}
-                {CATEGORY_LABELS[item.info.category].toLowerCase()}.
-              </span>
+              <EventRow {item} {zone} />
             {:else}
               <div class="t-main">
                 <span class="t-body">{STATUSES[item.status].label}</span>
