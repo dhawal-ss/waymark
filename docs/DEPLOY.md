@@ -125,8 +125,12 @@ VITE_SYNC_URL=https://waymark-sync.<your-subdomain>.workers.dev pnpm build
 
 ## Limits and quota
 
-- The Case Status API allows 5 requests per second and 1,000 per day. The server waits 220 ms
-  between calls and keeps 10% of the daily quota for new subscriptions and manual refreshes.
+- The Case Status API page on the developer portal states the limits for your app: a concurrency
+  limit (10 transactions per second, one request per 100 ms, when last checked) and a daily quota.
+  Waymark stays well under the rate: the server waits 220 ms between calls. `DAILY_QUOTA` defaults
+  to 1000, which is an assumption: set it to the daily quota the portal page states for your app
+  (lower it if the page says less). The server keeps 10% of the daily quota for new subscriptions
+  and manual refreshes.
 - Each receipt is checked every `POLL_INTERVAL_HOURS` (default 12), so about 450 receipts fit in
   the daily quota. `MAX_RECEIPTS_PER_ACCOUNT` (default 10) and `MAX_ACCOUNTS` (default 500) cap
   usage. Receipts that keep failing back off to at most 16 times the interval.
