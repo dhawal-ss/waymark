@@ -36,14 +36,19 @@ packages/core    Pure domain logic, no DOM, with fixtures in test/fixtures
   src/transfer.ts  Export files, schema migrations, v0.2 import
   src/csv.ts, series.ts, projection.ts, receipt.ts, dates.ts, demo.ts
   src/official.ts  Official Case Status API responses to ParsedCase ("CS:" events with status text)
-  src/public/      Visa Bulletin, processing time, and quarterly form data parsers (no DOM)
+  src/explain.ts   What, why, purpose, and next for each event; stage and notice or background signal
+  src/journey.ts   Days per stage, notice and background split, and events per month for a case
+  src/news.ts      News item types, official link check, validation of server news
+  src/public/      Visa Bulletin, processing time, quarterly form data, and news (Federal Register
+                   JSON, RSS and Atom) parsers, plus the news classifier (no DOM)
 packages/theme   OKLCH palettes, Material color roles, contrast, spring curves
 apps/server      Optional sync server: Hono on Cloudflare Workers, D1, Cron (see docs/DEPLOY.md)
   src/uscis.ts     OAuth client credentials and Case Status API client
   src/checker.ts   Polling within quota, change hashing, snapshots
   src/app.ts       HTTP API (anonymous accounts, subscriptions, updates)
   src/crypto.ts    AES-GCM at rest, HMAC lookup, token hashing
-  src/publicJobs.ts, publicStore.ts, publicRoutes.ts  Daily public data job, D1, public and admin API
+  src/publicJobs.ts, publicStore.ts, publicRoutes.ts  Daily public data jobs (processing times,
+                   Visa Bulletin, news), D1, public and admin API
   src/xlsx.ts      Dependency-free XLSX reader for quarterly files
   scripts/         sandbox-check, data-check, import-form-stats (run with --experimental-strip-types)
   migrations/      D1 schema; add a new numbered file for every change
@@ -60,6 +65,9 @@ apps/web         Svelte 5 + Vite PWA
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
   src/routes       Pages; all but Cases are lazy-loaded
+  src/routes/case     Case page parts: event rows with explanations, activity charts
+  src/routes/updates  Updates feed (snap scrolling cards, list view); data and pure logic are in
+                      lib/newsData.svelte.ts and lib/newsFeed.ts
   src/styles       fonts.css, tokens.css (shape, type, tones), base.css
 e2e/             Playwright tests with axe, run at 360px and 1280px
 scripts/         setup.sh, check-emdash, check-bundle-size, icons, render-icons
@@ -113,8 +121,19 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
 - Adding a case asks only for the receipt number. Get everything else from USCIS (automatic
   checks, then the copied case page); typed details are the last resort. Do not add questions to
   the add flow.
-- Public data comes only from official sources (egov.uscis.gov, travel.state.gov, uscis.gov files).
+- Public data comes only from official sources (egov.uscis.gov, travel.state.gov, uscis.gov files,
+  the Federal Register API).
   Keep parsers tolerant and report problems in plain language; never guess values.
+- `packages/core` is `sideEffects: false`, so code that only lazy routes use (`explain.ts`,
+  `journey.ts`) stays out of the initial chunk as long as nothing reachable from Cases, App, or
+  actions imports it. Run `pnpm build && pnpm size` after adding core exports.
+- Event explanations are community documented: show them with the unofficial note, keep the copy
+  general, and hedge behavior ("usually"). Never claim a meaning the dictionary does not carry.
+- News text comes only from the source (abstract or feed description), never written or generated.
+  Server news goes through `sanitizeNewsItems`. The server must never learn which forms a user has:
+  "For your cases" is filtered on the device. Page with `before` plus `beforeId`.
+- Agent worktrees under `.claude/worktrees` are skipped by ESLint and Prettier. Give each worktree
+  its own Playwright port (the config uses 4173 and reuses a running server).
 - Server scripts are run by Node with type stripping: import only types from files that use
   extensionless imports, or use explicit `.ts` extensions.
 

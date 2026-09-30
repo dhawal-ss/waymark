@@ -67,6 +67,22 @@ egov.uscis.gov, load Visa Bulletin cutoffs from travel.state.gov, and chart quar
 data. The sync server collects these once a day; requests from the app name only the form or
 category being viewed. Manual entry always works without it.
 
+### Event explanations
+
+Each event in a case's timeline opens to four plain sentences: what it is, why it happens, its
+purpose, and what comes next. Events are tagged Notice (USCIS usually mails a notice or the status
+visibly changes) or Background (routine activity that usually appears only in the case data). The
+Case activity section shows days spent per stage, the notice and background split, and events per
+month. Meanings of event codes are community documented and always labeled unofficial.
+
+### Updates feed
+
+With public data turned on, Updates opens a vertical feed of official items: rules, proposed rules,
+and notices that USCIS publishes in the Federal Register, plus any USCIS RSS or Atom feeds the server
+is configured with. Cards snap one at a time (arrow keys, Page Up and Down, J and K work; a list view
+is available). Text is the source's own abstract. Items that mention a form on one of your cases are
+marked "For your cases"; this is decided on the device, and the server only sees the page cursor.
+
 ## Structure
 
 | Path             | Purpose                                                             |

@@ -173,10 +173,39 @@ Web:
 - [x] Production builds ship a Content Security Policy with hashes of the inline scripts.
 - [x] An opt-in GitHub Pages deploy (docs/HOSTING.md).
 
-## Phase 5: updates and alerts
+## Phase 5: updates and alerts (news done, in review; alerts not started)
 
-Federal Register API and USCIS newsroom with short neutral summaries tagged by form. Email and web
-push alerts with quiet hours and per-case controls.
+- [x] Core: Federal Register documents (JSON) and RSS, RDF, and Atom feed parsers, a rule based news
+      classifier (fees, forms, policy, processing, visa, citizenship, humanitarian, work, safety),
+      form number extraction, and summaries taken only from the source text
+- [x] Server: `news_items` table (migration 0004), daily job with per-source failure handling,
+      newest 500 kept, `GET /v1/public/news` with exact paging (`before` plus `beforeId`),
+      `job=news` in the admin API, `data:check` covers the news sources
+- [x] Web: vertical snap feed in Updates (ARIA feed, keyboard, list view, reduced motion), category
+      filters, "For your cases" decided on the device, Sources tab kept
+- [ ] Email and web push alerts with quiet hours and per-case controls
+
+## Case intelligence (done, in review)
+
+- [x] `explainEvent`: what, why, purpose, next, stage, and a notice or background signal for every
+      dictionary event, official API events, and unknown codes
+- [x] `caseJourney`, `activityBreakdown`, `silentSinceLastNotice`, `eventsPerMonth`
+- [x] Case page: expandable event rows, Case activity section (stage journey bar, signal split
+      with a callout, events per month with a table view)
+- [x] Core is `sideEffects: false`; initial JS is 69.1 KB
+
+Not done, needs you:
+
+- Apply migration 0004 (`pnpm db:migrate:remote`, or deploy from GitHub Actions), then run
+  `data:check` on your machine. The Federal Register request and the feed parsers were built from
+  the documented shapes and fixtures; this container cannot reach federalregister.gov or uscis.gov.
+  Confirm the agency slug `u-s-citizenship-and-immigration-services` and the request format.
+- Add USCIS feed addresses to `USCIS_FEED_URLS` from the RSS links on the USCIS newsroom pages.
+  None ship by default because the addresses were not verified.
+- Run `sandbox:check` with one staging receipt with and one without history. It prints the response
+  shape. The adapter accepts `hist_case_status` and `hist_case_data`; report which one is real.
+- Not verified: real device swipe and share, screen reader output for the feed and the charts,
+  forced colors mode.
 
 ## Phase 6: polish
 

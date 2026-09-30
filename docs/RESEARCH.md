@@ -35,17 +35,17 @@ receipt numbers. Those are noted, and not planned (see decisions).
 
 ## Waymark today
 
-| Area                  | Waymark                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Input to add a case   | Receipt number only                                                                                         |
-| Source of details     | Official Case Status API (automatic), else the case page the user copies                                    |
-| Event decoding        | Community code dictionary, labeled unofficial. Plain-language explanations of each event are in development |
-| Notices and deadlines | Notices list, appointment to deadline, calendar export                                                      |
-| Processing times      | Official egov.uscis.gov series, linked to the case, with projection                                         |
-| Visa Bulletin         | Official cutoffs feed the priority date projection                                                          |
-| Official news         | In development: Federal Register and USCIS feeds in a vertical feed, tagged by form                         |
-| Privacy               | Local first, no accounts, no analytics, export and delete everything                                        |
-| Price                 | Free, no ads                                                                                                |
+| Area                  | Waymark                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| Input to add a case   | Receipt number only                                                                             |
+| Source of details     | Official Case Status API (automatic), else the case page the user copies                        |
+| Event decoding        | Community code dictionary, labeled unofficial, with what, why, purpose, and next for each event |
+| Notices and deadlines | Notices list, appointment to deadline, calendar export                                          |
+| Processing times      | Official egov.uscis.gov series, linked to the case, with projection                             |
+| Visa Bulletin         | Official cutoffs feed the priority date projection                                              |
+| Official news         | Federal Register and USCIS feeds in a vertical feed, tagged by form                             |
+| Privacy               | Local first, no accounts, no analytics, export and delete everything                            |
+| Price                 | Free, no ads                                                                                    |
 
 ## Decisions
 
