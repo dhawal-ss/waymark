@@ -1,9 +1,8 @@
 name: Deploy web app
 
 # Publishes apps/web to GitHub Pages on every push to main.
-# Off until you opt in: set the repository variable DEPLOY_PAGES to "true"
-# (Settings, Secrets and variables, Actions, Variables) and choose
-# "GitHub Actions" as the Pages source (Settings, Pages).
+# Needs "GitHub Actions" as the Pages source (Settings, Pages). To turn it off, set the
+# repository variable DEPLOY_PAGES to "false" (Settings, Secrets and variables, Actions).
 # Optional: set VITE_SYNC_URL to a sync server address to prefill it in the app.
 
 on:
@@ -22,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ vars.DEPLOY_PAGES == 'true' }}
+    if: ${{ vars.DEPLOY_PAGES != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
