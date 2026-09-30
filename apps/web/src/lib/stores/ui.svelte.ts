@@ -4,7 +4,7 @@ import type { StatusKey } from '@waymark/core';
 export type SheetRequest =
   | { kind: 'case'; caseId?: string }
   | { kind: 'deadline'; caseId?: string; deadlineId?: string }
-  | { kind: 'import'; caseId?: string; message?: string }
+  | { kind: 'import'; caseId?: string; message?: string; text?: string }
   | { kind: 'status'; caseId: string; status?: StatusKey };
 
 export const ui: { sheet: SheetRequest | null } = $state({ sheet: null });

@@ -56,7 +56,7 @@ apps/web         Svelte 5 + Vite PWA
   src/lib/publicData.ts  Public data client (off by default); linked series and cutoffs
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
-  src/routes       Pages; all but Cases and Settings are lazy-loaded
+  src/routes       Pages; all but Cases are lazy-loaded
   src/styles       fonts.css, tokens.css (shape, type, tones), base.css
 e2e/             Playwright tests with axe, run at 360px and 1280px
 scripts/         setup.sh, check-emdash, check-bundle-size, icons, render-icons

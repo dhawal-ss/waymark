@@ -233,3 +233,41 @@ export function caseSummaryLine(c: Case, on: LocalDate, timeZone?: string): stri
   const owner = c.owner ? ` (${c.owner})` : '';
   return `${c.form} ${c.receipt}${owner}: ${status}. Day ${daysSinceFiling(c, on)} since filing on ${c.receivedDate}.`;
 }
+
+export interface AppointmentSuggestion {
+  key: string;
+  title: string;
+  date: LocalDate;
+  /** Local time of the appointment, for the deadline title. */
+  instant: Instant;
+}
+
+/**
+ * Upcoming appointments from USCIS notices (biometrics, interviews) that are not yet deadlines
+ * for this case. Matching is by case, date, and title.
+ */
+export function appointmentSuggestions(
+  c: Case,
+  deadlines: readonly Deadline[],
+  on: LocalDate,
+  timeZone?: string,
+): AppointmentSuggestion[] {
+  const existing = new Set(
+    deadlines.filter((d) => d.caseId === c.id).map((d) => `${d.date}|${d.title}`),
+  );
+  const out: AppointmentSuggestion[] = [];
+  const seen = new Set<string>();
+  for (const n of c.uscis?.notices ?? []) {
+    if (!n.appointmentDateTime) continue;
+    const instant = new Date(n.appointmentDateTime);
+    if (Number.isNaN(instant.getTime())) continue;
+    const date = localDateOf(instant.toISOString(), timeZone);
+    if (date < on) continue;
+    const title = n.actionType?.trim() || 'USCIS appointment';
+    const key = `${date}|${title}`;
+    if (existing.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ key, title, date, instant: instant.toISOString() });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}

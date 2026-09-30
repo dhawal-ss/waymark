@@ -13,6 +13,7 @@
   import SeedPicker from '../lib/ui/SeedPicker.svelte';
   import ServerSyncSettings from '../lib/ui/ServerSyncSettings.svelte';
   import PublicDataSettings from '../lib/ui/PublicDataSettings.svelte';
+  import InstallSettings from '../lib/ui/InstallSettings.svelte';
   import { disableServerSync, syncEnabled } from '../lib/serverSync.svelte';
   import Switch from '../lib/ui/Switch.svelte';
 
@@ -192,6 +193,8 @@
     right after, except that server sync is turned off and its data deleted.
   </p>
 </section>
+
+<InstallSettings />
 
 <section class="group" aria-labelledby="about-title">
   <h2 id="about-title" class="t-title">Reference</h2>

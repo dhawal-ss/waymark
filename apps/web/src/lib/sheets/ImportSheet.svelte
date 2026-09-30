@@ -11,13 +11,15 @@
   interface Props {
     caseId?: string;
     message?: string;
+    /** Text shared to the app, shown for review before importing. */
+    text?: string;
     onclose: () => void;
   }
 
-  let { caseId, message, onclose }: Props = $props();
+  let { caseId, message, text: sharedText, onclose }: Props = $props();
 
   const target = $derived(caseId ? store.data.cases.find((c) => c.id === caseId) : undefined);
-  let text = $state('');
+  let text = $state(untrack(() => sharedText) ?? '');
   const initialMessage = untrack(() => message);
   let problems = $state<string[]>(initialMessage ? [initialMessage] : []);
   let warning = $state('');

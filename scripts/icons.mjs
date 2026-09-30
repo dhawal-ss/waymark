@@ -51,6 +51,8 @@ const NAMES = [
   'visibility_off',
   'search',
   'link',
+  'calendar_add_on',
+  'mobile_arrow_down',
 ];
 
 const require = createRequire(import.meta.url);

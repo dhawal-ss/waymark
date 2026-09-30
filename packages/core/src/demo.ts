@@ -112,7 +112,7 @@ export function exampleData(
     {
       id: makeId(),
       caseId: case1.id,
-      title: 'Interview at the field office',
+      title: 'Interview appointment',
       date: addDays(on, 21),
       done: false,
       createdAt: now,

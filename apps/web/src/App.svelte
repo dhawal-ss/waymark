@@ -2,17 +2,19 @@
   import { tick } from 'svelte';
   import { applyTheme } from './lib/theme';
   import { initServerSync } from './lib/serverSync.svelte';
-  import { initData, store } from './lib/stores/data.svelte';
+  import { initData, store, tz } from './lib/stores/data.svelte';
+  import { refreshClock, startClock } from './lib/stores/clock.svelte';
+  import { startInstallWatch } from './lib/install.svelte';
+  import { handleLaunch } from './lib/launch';
   import { router, startRouter } from './lib/stores/router.svelte';
   import AppNav from './lib/ui/AppNav.svelte';
   import LoadingIndicator from './lib/ui/LoadingIndicator.svelte';
   import SnackbarHost from './lib/ui/SnackbarHost.svelte';
   import SheetHost from './lib/sheets/SheetHost.svelte';
   import Cases from './routes/Cases.svelte';
-  import Settings from './routes/Settings.svelte';
   import type { Component } from 'svelte';
 
-  // Pages other than Cases and Settings load on demand to keep the first load small.
+  // Pages other than Cases load on demand to keep the first load small.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function loadRoute(name: string): Promise<{ default: Component<any> }> {
     switch (name) {
@@ -24,6 +26,8 @@
         return import('./routes/Updates.svelte');
       case 'tools':
         return import('./routes/Tools.svelte');
+      case 'settings':
+        return import('./routes/Settings.svelte');
       default:
         return import('./routes/DesignSystem.svelte');
     }
@@ -35,11 +39,21 @@
 
   $effect(() => startRouter());
   $effect(() => {
-    void initData().then(() => initServerSync());
+    void initData().then(() => {
+      startClock(() => tz());
+      startInstallWatch();
+      handleLaunch();
+      return initServerSync();
+    });
   });
 
   $effect(() => {
     applyTheme({ seed: prefs.seed, mode: prefs.theme, highContrast: prefs.highContrast });
+  });
+
+  $effect(() => {
+    void prefs.timeZone;
+    refreshClock();
   });
 
   $effect(() => {
@@ -89,8 +103,6 @@
     <div class="loading"><LoadingIndicator label="Loading your data" /></div>
   {:else if route.name === 'cases'}
     <Cases />
-  {:else if route.name === 'settings'}
-    <Settings />
   {:else}
     {#await loadRoute(route.name)}
       <div class="loading"><LoadingIndicator label="Loading page" /></div>

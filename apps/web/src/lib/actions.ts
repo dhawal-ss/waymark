@@ -1,6 +1,7 @@
 // Domain actions. Each one changes data through mutate so it persists and, when destructive,
 // offers undo.
 import {
+  buildIcs,
   describeMerge,
   exampleData,
   markSeen,
@@ -8,7 +9,6 @@ import {
   parseUscisJson,
   readImport,
   emptyData,
-  today,
   type AppData,
   type Case,
   type Deadline,
@@ -21,9 +21,12 @@ import {
   STATUSES,
 } from '@waymark/core';
 import { mutate, newId, nowInstant, replaceAll, store, tz } from './stores/data.svelte';
+import { downloadFile } from './download';
+import { clock } from './stores/clock.svelte';
 import { showSnackbar } from './stores/snackbar.svelte';
 
-export const todayLocal = (): LocalDate => today(tz());
+/** Today's local date. Reactive: it changes at midnight and when the time zone setting changes. */
+export const todayLocal = (): LocalDate => clock.day;
 
 export interface CaseInput {
   receipt: string;
@@ -242,4 +245,32 @@ export async function copyText(text: string, done: string): Promise<void> {
   } catch {
     showSnackbar('Copying was blocked by the browser. Select the text and copy it manually.');
   }
+}
+
+/** Save deadlines as a calendar file (all-day events with a reminder the day before). */
+export function exportDeadlinesToCalendar(
+  deadlines: readonly Deadline[],
+  filename = 'waymark-deadlines.ics',
+): void {
+  const events = deadlines.map((d) => {
+    const c = d.caseId ? store.data.cases.find((x) => x.id === d.caseId) : undefined;
+    return {
+      uid: `${d.id}@waymark`,
+      date: d.date,
+      title: d.title,
+      ...(c ? { description: `${c.form} ${c.receipt}${c.owner ? `, ${c.owner}` : ''}` } : {}),
+    };
+  });
+  downloadFile(filename, buildIcs(events, nowInstant()), 'text/calendar');
+  showSnackbar(
+    events.length === 1
+      ? 'Saved a calendar file. Open it to add the event.'
+      : `Saved ${events.length} events as a calendar file. Open it to add them.`,
+  );
+}
+
+/** Add an appointment from a USCIS notice as a deadline of its case. */
+export function addAppointmentDeadline(caseId: string, title: string, date: LocalDate): void {
+  const d: Deadline = { id: newId(), caseId, title, date, done: false, createdAt: nowInstant() };
+  mutate((data) => data.deadlines.push(d), { undo: `Added deadline: ${title}.` });
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    appointmentSuggestions,
     caseStats,
     caseSummaryLine,
     CATEGORY_LABELS,
@@ -14,8 +15,10 @@
     waitPosition,
   } from '@waymark/core';
   import {
+    addAppointmentDeadline,
     copyText,
     deleteCase,
+    exportDeadlinesToCalendar,
     deleteManualEntry,
     markCaseSeen,
     todayLocal,
@@ -38,6 +41,7 @@
   import Receipt from '../lib/ui/Receipt.svelte';
   import ServerTracking from '../lib/ui/ServerTracking.svelte';
   import { syncEnabled } from '../lib/serverSync.svelte';
+  import { fetchProcessingTimes, publicDataOn, type LatestTime } from '../lib/publicData';
   import SplitButton from '../lib/ui/SplitButton.svelte';
   import StatusPill from '../lib/ui/StatusPill.svelte';
   import TextArea from '../lib/ui/TextArea.svelte';
@@ -68,6 +72,24 @@
       : 1,
   );
   const deadlines = $derived(store.data.deadlines.filter((d) => d.caseId === id));
+  const openDeadlines = $derived(deadlines.filter((d) => !d.done));
+  const appointments = $derived(
+    c ? appointmentSuggestions(c, store.data.deadlines, today, zone) : [],
+  );
+
+  // Published processing times for this form from the sync server, when public data is on.
+  let published = $state<LatestTime[]>([]);
+  $effect(() => {
+    const form = c?.form;
+    if (!form || form === 'Other' || !publicDataOn()) return;
+    fetchProcessingTimes(form)
+      .then((r) => (published = r.items.filter((t) => t.months !== null)))
+      .catch(() => (published = []));
+  });
+  function useMonths(value: number) {
+    months = String(value);
+    updateCase(id, { processingMonths: value }, `Set the processing time to ${value} months.`);
+  }
 
   // Notes autosave after a pause in typing.
   let notes = $state(store.data.cases.find((x) => x.id === id)?.notes ?? '');
@@ -131,7 +153,14 @@
       <FormBadge form={c.form} size={56} />
       <div class="hero-id">
         <span class="t-title-large">{c.form}</span>
-        <Receipt receipt={c.receipt} />
+        <span class="receipt-row">
+          <Receipt receipt={c.receipt} />
+          <IconButton
+            icon="content_copy"
+            label="Copy receipt number"
+            onclick={() => copyText(c.receipt, `Copied ${c.receipt}.`)}
+          />
+        </span>
       </div>
       {#if c.demo}<Pill label="Demo" icon="info" />{/if}
     </div>
@@ -246,6 +275,29 @@
     </section>
   </div>
 
+  {#if appointments.length > 0}
+    <section class="panel appointments" aria-labelledby="appointments-title">
+      <h2 id="appointments-title" class="t-title">Upcoming appointments</h2>
+      <ul class="notices" role="list">
+        {#each appointments as a (a.key)}
+          <li class="appointment">
+            <span class="t-body">{a.title}</span>
+            <span class="t-small">{formatDateTime(a.instant, zone)}</span>
+            <div>
+              <Button
+                variant="tonal"
+                icon="event"
+                onclick={() => addAppointmentDeadline(c.id, a.title, a.date)}
+              >
+                Add to deadlines
+              </Button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   {#if c.uscis && c.uscis.notices.length > 0}
     <section class="panel" aria-labelledby="notices-title">
       <h2 id="notices-title" class="t-title">Notices</h2>
@@ -289,6 +341,22 @@
         <p class="muted">
           Enter the processing time for your form and office to compare it with your wait.
         </p>
+      {/if}
+      {#if published.length > 0}
+        <div class="published">
+          <p class="t-small muted">Published times for {c.form} from egov.uscis.gov:</p>
+          <div class="chips">
+            {#each published.slice(0, 6) as t (`${t.office}|${t.subtype}`)}
+              <Button
+                variant="outlined"
+                onclick={() => t.months !== null && useMonths(t.months)}
+                aria-label="Use {t.months} months, {t.office}{t.label ? `, ${t.label}` : ''}"
+              >
+                {t.months} mo, {t.office}{t.label ? `, ${t.label}` : ''}
+              </Button>
+            {/each}
+          </div>
+        </div>
       {/if}
       <a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noopener noreferrer">
         Check processing times on egov.uscis.gov
@@ -348,6 +416,17 @@
     {:else}
       <DeadlineList {deadlines} {today} showCase={false} />
     {/if}
+    {#if openDeadlines.length > 0}
+      <div>
+        <Button
+          variant="outlined"
+          icon="calendar_add_on"
+          onclick={() => exportDeadlinesToCalendar(openDeadlines, `waymark-${c.receipt}.ics`)}
+        >
+          Add to calendar
+        </Button>
+      </div>
+    {/if}
   </section>
 
   <section class="panel" aria-labelledby="notes-title">
@@ -401,6 +480,35 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+  .receipt-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: -2px;
+  }
+  .receipt-row :global(.icon-btn) {
+    color: inherit;
+  }
+  .appointments {
+    background: var(--tertiary-container);
+    color: var(--on-tertiary-container);
+  }
+  .appointment {
+    gap: 4px;
+  }
+  .appointments .notices li {
+    border-color: color-mix(in srgb, currentColor 20%, transparent);
+  }
+  .published {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .hero-id {
     flex: 1;

@@ -12,7 +12,12 @@
   <DeadlineSheet caseId={ui.sheet.caseId} deadlineId={ui.sheet.deadlineId} onclose={closeSheet} />
 {:else if ui.sheet?.kind === 'import'}
   {#key ui.sheet}
-    <ImportSheet caseId={ui.sheet.caseId} message={ui.sheet.message} onclose={closeSheet} />
+    <ImportSheet
+      caseId={ui.sheet.caseId}
+      message={ui.sheet.message}
+      text={ui.sheet.text}
+      onclose={closeSheet}
+    />
   {/key}
 {:else if ui.sheet?.kind === 'status'}
   <StatusSheet caseId={ui.sheet.caseId} status={ui.sheet.status} onclose={closeSheet} />

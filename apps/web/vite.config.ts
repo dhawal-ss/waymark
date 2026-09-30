@@ -35,6 +35,17 @@ export default defineConfig({
         display: 'standalone',
         background_color: '#f2fbf9',
         theme_color: '#f2fbf9',
+        // Share the copied USCIS JSON from another app into Waymark (Android, installed app).
+        share_target: {
+          action: './',
+          method: 'GET',
+          params: { title: 'shared_title', text: 'shared_text', url: 'shared_url' },
+        },
+        shortcuts: [
+          { name: 'New case', short_name: 'New case', url: './?action=new-case' },
+          { name: 'Import USCIS JSON', short_name: 'Import JSON', url: './?action=import' },
+        ],
+        categories: ['productivity', 'utilities'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },

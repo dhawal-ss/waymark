@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { casesSummary, sortCases } from '@waymark/core';
-  import { importDataFile, loadExample, removeExample, todayLocal } from '../lib/actions';
+  import { casesSummary, isClosed, sortCases, type Case } from '@waymark/core';
+  import {
+    exportDeadlinesToCalendar,
+    importDataFile,
+    loadExample,
+    removeExample,
+    todayLocal,
+  } from '../lib/actions';
   import { formatShortDate, plural, relativeDays } from '../lib/format';
   import { store, tz } from '../lib/stores/data.svelte';
   import { showSnackbar } from '../lib/stores/snackbar.svelte';
@@ -12,10 +18,29 @@
   import FabMenu from '../lib/ui/FabMenu.svelte';
   import Icon from '../lib/ui/Icon.svelte';
   import PageHeader from '../lib/ui/PageHeader.svelte';
+  import TextField from '../lib/ui/TextField.svelte';
 
   const today = $derived(todayLocal());
   const zone = $derived(tz());
-  const cases = $derived(sortCases(store.data.cases, today, zone));
+  const sorted = $derived(sortCases(store.data.cases, today, zone));
+  // Search appears once the list is long enough to need it.
+  const SEARCH_FROM = 6;
+  let query = $state('');
+  const matches = (c: Case, q: string) => {
+    const needle = q
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, '');
+    if (!needle) return true;
+    return [c.receipt, c.owner, c.form, c.form.replace('-', '')].some((v) =>
+      v.toLowerCase().includes(needle),
+    );
+  };
+  const filtered = $derived(sorted.filter((c) => matches(c, query)));
+  const cases = $derived(filtered.filter((c) => !isClosed(c, zone)));
+  const closed = $derived(filtered.filter((c) => isClosed(c, zone)));
+  let showClosed = $state(false);
+  const openDeadlines = $derived(store.data.deadlines.filter((d) => !d.done));
   const summary = $derived(casesSummary(store.data.cases, store.data.deadlines, today, zone));
   const longest = $derived(summary.longestWait);
   const hasDemo = $derived(store.data.cases.some((c) => c.demo));
@@ -86,11 +111,52 @@
     </p>
   {/if}
 
-  <ul class="cases" role="list">
-    {#each cases as c (c.id)}
-      <li><CaseCard {c} {today} timeZone={zone} /></li>
-    {/each}
-  </ul>
+  {#if store.data.cases.length >= SEARCH_FROM}
+    <div class="search">
+      <TextField
+        label="Find a case"
+        type="search"
+        bind:value={query}
+        autocomplete="off"
+        spellcheck={false}
+        supporting="Receipt number, name, or form"
+      />
+    </div>
+  {/if}
+
+  {#if cases.length > 0}
+    <ul class="cases" role="list">
+      {#each cases as c (c.id)}
+        <li><CaseCard {c} {today} timeZone={zone} /></li>
+      {/each}
+    </ul>
+  {:else if query && closed.length === 0}
+    <p class="muted">No case matches "{query}". Check the receipt number or clear the search.</p>
+  {:else if !query}
+    <p class="muted">All cases are closed.</p>
+  {/if}
+
+  {#if closed.length > 0}
+    <section class="closed" aria-labelledby="closed-title">
+      <div class="section-head">
+        <h2 id="closed-title" class="t-title">Closed ({closed.length})</h2>
+        <Button
+          variant="text"
+          aria-expanded={showClosed || !!query}
+          onclick={() => (showClosed = !showClosed)}
+        >
+          {showClosed || query ? 'Hide closed cases' : 'Show closed cases'}
+        </Button>
+      </div>
+      {#if showClosed || query}
+        <ul class="cases" role="list">
+          {#each closed as c (c.id)}
+            <li><CaseCard {c} {today} timeZone={zone} /></li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
 
   <section class="deadlines" aria-labelledby="deadlines-title">
     <div class="section-head">
@@ -99,6 +165,17 @@
         >New deadline</Button
       >
     </div>
+    {#if openDeadlines.length > 0}
+      <div>
+        <Button
+          variant="outlined"
+          icon="calendar_add_on"
+          onclick={() => exportDeadlinesToCalendar(openDeadlines)}
+        >
+          Add {openDeadlines.length === 1 ? 'deadline' : `${openDeadlines.length} deadlines`} to calendar
+        </Button>
+      </div>
+    {/if}
     {#if visibleDeadlines.length === 0}
       <p class="muted t-small">
         No open deadlines. Add one for RFE responses, biometrics, or interviews.
@@ -148,6 +225,15 @@
     .cases {
       grid-template-columns: 1fr 1fr;
     }
+  }
+  .search {
+    margin-bottom: 12px;
+  }
+  .closed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 24px;
   }
   .deadlines {
     display: flex;
