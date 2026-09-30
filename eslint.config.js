@@ -11,6 +11,8 @@ export default ts.config(
       '**/coverage/**',
       'playwright-report/**',
       'test-results/**',
+      // Git worktrees that agents create inside the repository.
+      '.claude/worktrees/**',
     ],
   },
   js.configs.recommended,
