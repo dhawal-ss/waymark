@@ -22,7 +22,7 @@
     updateCase,
   } from '../lib/actions';
   import { formatDate, formatDateTime, plural, relativeTime } from '../lib/format';
-  import { store, tz } from '../lib/stores/data.svelte';
+  import { flushSaves, store, tz } from '../lib/stores/data.svelte';
   import { navigate } from '../lib/stores/router.svelte';
   import { openSheet } from '../lib/stores/ui.svelte';
   import { startSync } from '../lib/sync';
@@ -76,7 +76,9 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       updateCase(id, { notes });
-      notesState = 'saved';
+      void flushSaves().then(() => {
+        if (notesState === 'pending') notesState = 'saved';
+      });
     }, 600);
   }
   $effect(() => () => {

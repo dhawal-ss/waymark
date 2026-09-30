@@ -27,12 +27,23 @@ Waymark is a private, local-first USCIS case tracker. Read this file before chan
 ## Layout
 
 ```
-packages/core    Pure domain logic, no DOM: statuses, forms, dates (more in Phase 2)
+packages/core    Pure domain logic, no DOM, with fixtures in test/fixtures
+  src/elis.ts      USCIS case JSON parser (brace scanner, allowed fields only)
+  src/merge.ts     Merge imports by receipt; new-event tracking
+  src/derive.ts    Status, timeline, milestones, stats, sorting, summaries
+  src/events.ts    Community event code dictionary (unofficial)
+  src/sanitize.ts  Validation of untrusted records
+  src/transfer.ts  Export files, schema migrations, v0.2 import
+  src/csv.ts, series.ts, projection.ts, receipt.ts, dates.ts, demo.ts
 packages/theme   OKLCH palettes, Material color roles, contrast, spring curves
 apps/web         Svelte 5 + Vite PWA
+  src/lib/db.ts    IndexedDB schema versions and upgrades
+  src/lib/stores   data (app data, persistence, undo), prefs, router, snackbar, ui (sheets)
+  src/lib/actions.ts  Domain actions; every change goes through mutate()
+  src/lib/sync.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
+  src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
-  src/lib/stores   Rune-based stores: prefs, router, snackbar
-  src/routes       Pages; DesignSystem.svelte is lazy-loaded
+  src/routes       Pages; all but Cases and Settings are lazy-loaded
   src/styles       fonts.css, tokens.css (shape, type, tones), base.css
 e2e/             Playwright tests with axe, run at 360px and 1280px
 scripts/         setup.sh, check-emdash, check-bundle-size, icons, render-icons
@@ -64,8 +75,15 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
   `var(--spring-fast-spatial-duration)`); color and opacity use `var(--ease-standard)`.
 - Type classes: `t-page-title`, `t-counter`, `t-headline`, `t-title-large`, `t-title`, `t-body`,
   `t-label`, `t-small`, `t-mono`.
-- Every destructive action offers undo through the snackbar.
+- Change data only through `mutate()` in `lib/stores/data.svelte.ts`. Pass `{ undo: 'Text.' }` for
+  every destructive action; the snackbar then offers Undo that restores the previous snapshot.
+- Structural IndexedDB changes: append a step to `UPGRADES` in `lib/db.ts` and bump `DB_VERSION`.
+  Data shape changes: add `MIGRATIONS[n]` in `packages/core/src/transfer.ts` and bump
+  `SCHEMA_VERSION`. Never edit a shipped step.
+- Untrusted input (imports, stored data, USCIS JSON) goes through `sanitize.ts` or `elis.ts`.
+- Pages render after the data store is ready, so components may seed local form state from it.
 - Dates are local `YYYY-MM-DD` strings; do arithmetic with `toEpochDay` from `@waymark/core`.
+  Convert USCIS instants with `localDateOf(instant, tz())` so the time zone setting applies.
 - Add icons by name to `scripts/icons.mjs` and run `node scripts/icons.mjs`.
 
 Keep this file, `README.md`, and `docs/ROADMAP.md` current as the project changes.

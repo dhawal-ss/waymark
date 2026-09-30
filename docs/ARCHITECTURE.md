@@ -35,7 +35,7 @@ Svelte 5 with runes, Vite, and `vite-plugin-pwa`. A hash router keeps static hos
 simple. Components are imported by path so unused component CSS is not bundled. The design system
 page is a lazy chunk.
 
-## Data model (Phase 2)
+## Data model
 
 - `LocalDate` is `YYYY-MM-DD`; `Instant` is an ISO UTC string for USCIS timestamps only.
 - `Case`: id, receipt, form, owner, receivedDate, processingMonths, notes, manual entries
@@ -48,5 +48,22 @@ page is a lazy chunk.
 - IndexedDB stores `cases`, `deadlines`, `series`, and `kv`, with an ordered migration list keyed by
   schema version. Exports are `{app: "waymark", schema, exportedAt, data}`; imports run a separate
   chain of data migrators, starting with v0.2 to schema 1.
-- Destructive actions go through one store operation that snapshots the affected records so the
-  snackbar can undo them.
+- Every change goes through `mutate()`, which applies it to the in-memory state and writes the whole
+  data set to IndexedDB in one transaction. Destructive changes snapshot the data first so the
+  snackbar can undo them. Data sets are small (dozens of cases), so full writes stay fast and keep
+  the stores consistent.
+- Other tabs get a BroadcastChannel message after each save and reload from IndexedDB. When another
+  tab needs to upgrade or delete the database, this tab closes its connection and asks for a reload.
+
+## USCIS import
+
+- `parseUscisJson` tries `JSON.parse`, then falls back to a brace scanner that finds top-level
+  objects and ignores braces inside strings. It unwraps `data`, `cases`, and arrays, keeps only the
+  allowed fields, normalizes receipts, forms, and timestamps (offset-less times are treated as UTC),
+  and reports problems in plain language.
+- `mergeImport` merges by receipt. The event key is `code|timestamp`. The first import into a case
+  marks nothing new; later imports mark unseen keys new until the user marks them seen. Missing
+  cases are created with the filing date taken from the submission time in the user's zone.
+- The sync flow opens the JSON in a new tab (the endpoint needs the user's session and cannot be
+  fetched cross-origin). When the page becomes visible again, a snackbar offers Import, which reads
+  the clipboard inside that user gesture. Any failure opens the paste sheet with the reason.

@@ -1,6 +1,11 @@
 <script lang="ts">
   import { SEED_PRESETS, type ThemeMode } from '@waymark/theme';
-  import { store } from '../lib/stores/data.svelte';
+  import { buildExport, today } from '@waymark/core';
+  import { deleteEverything, importDataFile } from '../lib/actions';
+  import { flushSaves, nowInstant, store } from '../lib/stores/data.svelte';
+  import { showSnackbar } from '../lib/stores/snackbar.svelte';
+  import Button from '../lib/ui/Button.svelte';
+  import Select from '../lib/ui/Select.svelte';
   import { updatePrefs } from '../lib/stores/prefs.svelte';
   import ButtonGroup from '../lib/ui/ButtonGroup.svelte';
   import Icon from '../lib/ui/Icon.svelte';
@@ -9,6 +14,50 @@
   import Switch from '../lib/ui/Switch.svelte';
 
   const prefs = $derived(store.data.prefs);
+
+  const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zones = (() => {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      return [];
+    }
+  })();
+  const zoneOptions = [
+    { value: '', label: `Device time zone (${deviceZone})` },
+    ...zones.map((z) => ({ value: z, label: z.replace(/_/g, ' ') })),
+  ];
+
+  let fileInput: HTMLInputElement | undefined = $state();
+  let importError = $state('');
+
+  async function exportData() {
+    await flushSaves();
+    const file = buildExport($state.snapshot(store.data), nowInstant());
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `waymark-export-${today()}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showSnackbar('Exported your data as a JSON file.');
+  }
+
+  async function onImportFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      importError = 'The file is larger than 20 MB. Choose a file exported from Waymark.';
+      return;
+    }
+    const result = importDataFile(await file.text());
+    importError = result.ok ? '' : result.message;
+  }
 
   const THEMES: { value: ThemeMode; label: string }[] = [
     { value: 'system', label: 'System' },
@@ -54,6 +103,79 @@
     checked={prefs.maskReceipts}
     onchange={(maskReceipts) => updatePrefs({ maskReceipts })}
   />
+</section>
+
+<section class="group" aria-labelledby="time-title">
+  <h2 id="time-title" class="t-title">Time</h2>
+  <Select
+    label="Time zone for USCIS event times"
+    value={prefs.timeZone}
+    options={zoneOptions}
+    supporting="Event times and dates follow this zone."
+    onchange={(timeZone) => updatePrefs({ timeZone })}
+  />
+</section>
+
+<section class="group" aria-labelledby="sync-title">
+  <h2 id="sync-title" class="t-title">Sync status</h2>
+  <dl class="sync">
+    <div>
+      <dt class="t-label">Works</dt>
+      <dd>
+        Manual sync. On a case, choose Sync to open your case JSON on my.uscis.gov, copy the page,
+        and import it. Waymark keeps only events, notices, and dates.
+      </dd>
+    </div>
+    <div>
+      <dt class="t-label">Does not work</dt>
+      <dd>
+        Automatic sync. USCIS does not let other sites read your signed-in account, and Waymark
+        never asks for or stores your USCIS password.
+      </dd>
+    </div>
+    <div>
+      <dt class="t-label">Planned</dt>
+      <dd>
+        Optional sync through the official USCIS Case Status API. Keeping data only on this device
+        stays the default.
+      </dd>
+    </div>
+  </dl>
+</section>
+
+<section class="group" aria-labelledby="data-title">
+  <h2 id="data-title" class="t-title">Data</h2>
+  <p class="muted t-small">
+    Everything is stored in this browser on this device. Export a file to keep a backup or move to
+    another device.
+  </p>
+  {#if importError}<p class="alert" role="alert">{importError}</p>{/if}
+  <div class="actions">
+    <Button variant="tonal" icon="download" onclick={exportData}>Export data</Button>
+    <Button variant="outlined" icon="upload" onclick={() => fileInput?.click()}>Import data</Button>
+    <input
+      bind:this={fileInput}
+      class="visually-hidden"
+      type="file"
+      accept=".json,application/json"
+      tabindex="-1"
+      aria-hidden="true"
+      onchange={onImportFile}
+    />
+  </div>
+  <p class="muted t-small">
+    Import accepts Waymark exports and v0.2 data. It replaces all current data; you can undo right
+    after.
+  </p>
+  <div class="actions">
+    <Button variant="outlined" icon="delete" class="danger" onclick={deleteEverything}
+      >Delete everything</Button
+    >
+  </div>
+  <p class="muted t-small">
+    Deletes all cases, deadlines, series, and tool data. Display settings are kept. You can undo
+    right after.
+  </p>
 </section>
 
 <section class="group" aria-labelledby="about-title">
@@ -102,5 +224,29 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .actions :global(.danger) {
+    color: var(--error);
+    box-shadow: inset 0 0 0 1px var(--error);
+  }
+  .alert {
+    padding: 12px 16px;
+    border-radius: var(--shape-m);
+    background: var(--error-container);
+    color: var(--on-error-container);
+  }
+  .sync {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+  }
+  .sync dd {
+    margin: 2px 0 0;
   }
 </style>

@@ -45,15 +45,14 @@ describe('shapes', () => {
   });
 });
 
-describe('snackbar queue', () => {
-  it('shows one message at a time and advances on dismiss', () => {
+describe('snackbar', () => {
+  it('replaces the current message and ignores stale dismissals', () => {
     const first = showSnackbar('First');
     showSnackbar('Second', { label: 'Undo', run: () => {} });
-    expect(snackbar.current?.text).toBe('First');
-    expect(snackbar.queue).toHaveLength(1);
-    dismissSnackbar(first);
     expect(snackbar.current?.text).toBe('Second');
     expect(snackbar.current?.timeoutMs).toBe(8000);
+    dismissSnackbar(first);
+    expect(snackbar.current?.text).toBe('Second');
     dismissSnackbar();
     expect(snackbar.current).toBeNull();
   });

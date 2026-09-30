@@ -59,9 +59,16 @@
       return;
     }
     window.scrollTo(0, 0);
-    tick().then(() =>
-      document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true }),
-    );
+    // Lazy pages render their heading a little later, so wait for it for up to about a second.
+    let frames = 0;
+    let frame = 0;
+    const focusHeading = () => {
+      const heading = document.querySelector<HTMLElement>('main h1');
+      if (heading) heading.focus({ preventScroll: true });
+      else if (frames++ < 60) frame = requestAnimationFrame(focusHeading);
+    };
+    tick().then(focusHeading);
+    return () => cancelAnimationFrame(frame);
   });
 </script>
 
@@ -77,7 +84,9 @@
 <AppNav current={router.route.name} />
 
 <main id="main" tabindex="-1">
-  {#if route.name === 'cases'}
+  {#if !store.ready}
+    <div class="loading"><LoadingIndicator label="Loading your data" /></div>
+  {:else if route.name === 'cases'}
     <Cases />
   {:else if route.name === 'settings'}
     <Settings />
@@ -102,7 +111,7 @@
   Stored on this device only. Not legal advice. Not affiliated with USCIS.
 </footer>
 
-<SheetHost />
+{#if store.ready}<SheetHost />{/if}
 <SnackbarHost />
 
 <style>

@@ -43,3 +43,21 @@ export async function cssVar(page: Page, name: string): Promise<string> {
     name,
   );
 }
+
+export const FIXTURES = 'packages/core/test/fixtures';
+
+export async function loadExample(page: Page): Promise<void> {
+  await open(page, '/cases');
+  await page.getByRole('button', { name: 'Load example' }).click();
+  await expect(page.locator('a.card')).toHaveCount(3);
+  await dismissSnackbar(page);
+}
+
+export async function dismissSnackbar(page: Page): Promise<void> {
+  const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
+  if (await dismiss.isVisible()) await dismiss.click();
+}
+
+export function snackbar(page: Page, text: string | RegExp) {
+  return page.getByRole('status').filter({ hasText: text });
+}

@@ -8,8 +8,8 @@ the design.
 
 ## Privacy
 
-- All data is stored in your browser on this device. There is no account and no server in the
-  current build.
+- All data is stored in your browser (IndexedDB) on this device. There is no account and no
+  server in the current build. Export, import, and delete everything are in Settings.
 - No analytics, trackers, or third-party scripts. Fonts are self-hosted.
 - Waymark never signs in to USCIS for you and never stores USCIS credentials.
 - Not legal advice. Not affiliated with USCIS.
@@ -28,15 +28,27 @@ pnpm test:e2e     # Playwright and axe at 360px and 1280px
 
 The design system reference lives in the app at Settings, then Design system.
 
+## Syncing with USCIS
+
+USCIS does not let other sites read a signed-in account, so sync is manual:
+
+1. On a case, choose Sync. Waymark opens
+   `https://my.uscis.gov/account/case-service/api/cases/{RECEIPT}` in a new tab.
+2. Sign in if asked, select all, and copy the page.
+3. Return to Waymark and choose Import in the prompt, or use Paste JSON or a saved file.
+
+Waymark keeps only events, notices, dates, form type, and channel. Event code meanings are
+community documented and shown as unofficial. An official API sync is planned (Phase 3).
+
 ## Structure
 
-| Path             | Purpose                                                          |
-| ---------------- | ---------------------------------------------------------------- |
-| `packages/core`  | Domain logic with no DOM: statuses, forms, dates                 |
-| `packages/theme` | Material 3 color roles from one seed in OKLCH, contrast, springs |
-| `apps/web`       | Svelte 5 PWA: design system, app shell, pages                    |
-| `e2e`            | Playwright end-to-end and accessibility tests                    |
-| `scripts`        | Setup, em dash lint, bundle budget, icon generation              |
+| Path             | Purpose                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| `packages/core`  | Domain logic with no DOM: parsing, merge, status, projections, I/O |
+| `packages/theme` | Material 3 color roles from one seed in OKLCH, contrast, springs   |
+| `apps/web`       | Svelte 5 PWA: design system, app shell, pages                      |
+| `e2e`            | Playwright end-to-end and accessibility tests                      |
+| `scripts`        | Setup, em dash lint, bundle budget, icon generation                |
 
 ## Credits
 

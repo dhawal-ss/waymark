@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoAxeViolations, open, PAGES, setPrefs } from './helpers';
+import { expectNoAxeViolations, loadExample, open, PAGES, setPrefs } from './helpers';
 
 const VARIANTS = [
   { name: 'light', prefs: { theme: 'light' } },
@@ -57,4 +57,32 @@ test('reduced motion stops the loading indicator and shortens transitions', asyn
     .getByRole('button', { name: 'Filled' })
     .evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
   expect(duration).toBeLessThan(0.01);
+});
+
+for (const variant of VARIANTS.slice(0, 3)) {
+  test(`axe: screens with example data in ${variant.name}`, async ({ page }) => {
+    await setPrefs(page, variant.prefs);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await loadExample(page);
+    await expectNoAxeViolations(page);
+    await page.locator('a.card').first().click();
+    await expect(page.locator('main h1')).toHaveText('Alex');
+    await expectNoAxeViolations(page);
+    for (const path of ['/insights', '/updates', '/tools']) {
+      await page.goto(`./#${path}`);
+      await expect(page.locator('main h1')).toBeVisible();
+      await expectNoAxeViolations(page);
+    }
+  });
+}
+
+test('axe: add case and import sheets', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await open(page, '/cases');
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add case' }).click();
+  await expectNoAxeViolations(page);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Import USCIS JSON' }).click();
+  await expectNoAxeViolations(page);
 });

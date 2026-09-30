@@ -12,12 +12,12 @@ export interface SnackbarMessage {
 
 let nextId = 1;
 
-export const snackbar: { current: SnackbarMessage | null; queue: SnackbarMessage[] } = $state({
-  current: null,
-  queue: [],
-});
+export const snackbar: { current: SnackbarMessage | null } = $state({ current: null });
 
-/** Show a message. Messages with an action stay longer so there is time to use it. */
+/**
+ * Show a message, replacing any current one so the newest result and its undo are always
+ * visible. Messages with an action stay longer so there is time to use it.
+ */
 export function showSnackbar(text: string, action?: SnackbarAction, timeoutMs?: number): number {
   const message: SnackbarMessage = {
     id: nextId++,
@@ -25,15 +25,12 @@ export function showSnackbar(text: string, action?: SnackbarAction, timeoutMs?: 
     ...(action ? { action } : {}),
     timeoutMs: timeoutMs ?? (action ? 8000 : 5000),
   };
-  if (snackbar.current) snackbar.queue.push(message);
-  else snackbar.current = message;
+  snackbar.current = message;
   return message.id;
 }
 
+/** Dismiss the current message, or only the message with `id` if it is still showing. */
 export function dismissSnackbar(id?: number): void {
-  if (id !== undefined && snackbar.current?.id !== id) {
-    snackbar.queue = snackbar.queue.filter((m) => m.id !== id);
-    return;
-  }
-  snackbar.current = snackbar.queue.shift() ?? null;
+  if (id !== undefined && snackbar.current?.id !== id) return;
+  snackbar.current = null;
 }
