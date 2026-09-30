@@ -1,5 +1,11 @@
 // D1 queries for public data.
-import type { BulletinRow, FormStat, ProcessingTime } from '@waymark/core';
+import {
+  sanitizeNewsItem,
+  type BulletinRow,
+  type FormStat,
+  type NewsItem,
+  type ProcessingTime,
+} from '@waymark/core';
 
 export interface TargetRow {
   form: string;
@@ -234,6 +240,93 @@ export class PublicStore {
       .bind(form)
       .all<Record<string, unknown>>();
     return res.results;
+  }
+
+  /**
+   * Store news items. A known item keeps its first_seen_at and takes the source's current text and
+   * category (so a reworded title or an improved rule shows up); only new ones are counted.
+   */
+  async upsertNews(items: NewsItem[], now: string): Promise<number> {
+    let added = 0;
+    for (let i = 0; i < items.length; i += 50) {
+      const chunk = items.slice(i, i + 50);
+      const known = await this.db
+        .prepare(`SELECT id FROM news_items WHERE id IN (${chunk.map(() => '?').join(', ')})`)
+        .bind(...chunk.map((item) => item.id))
+        .all<{ id: string }>();
+      const ids = new Set(known.results.map((r) => r.id));
+      added += chunk.filter((item) => !ids.has(item.id)).length;
+      await this.db.batch(
+        chunk.map((item) =>
+          this.db
+            .prepare(
+              `INSERT INTO news_items (id, source, kind, title, summary, url, published_on, category, forms,
+                 first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT (id) DO UPDATE SET source = excluded.source, kind = excluded.kind,
+                 title = excluded.title, summary = excluded.summary, url = excluded.url,
+                 published_on = excluded.published_on, category = excluded.category,
+                 forms = excluded.forms, last_seen_at = excluded.last_seen_at`,
+            )
+            .bind(
+              item.id,
+              item.source,
+              item.kind,
+              item.title,
+              item.summary,
+              item.url,
+              item.publishedOn,
+              item.category,
+              JSON.stringify(item.forms),
+              now,
+              now,
+            ),
+        ),
+      );
+    }
+    return added;
+  }
+
+  /** Keep only the newest `keep` items (by publication date, then id). */
+  async pruneNews(keep: number): Promise<void> {
+    await this.db
+      .prepare(
+        `DELETE FROM news_items WHERE id NOT IN (
+           SELECT id FROM news_items ORDER BY published_on DESC, id ASC LIMIT ?)`,
+      )
+      .bind(keep)
+      .run();
+  }
+
+  /** Newest first. `before` is exclusive; `form` matches one of the item's form numbers. */
+  async listNews(query: {
+    limit: number;
+    before?: string;
+    category?: string;
+    form?: string;
+  }): Promise<NewsItem[]> {
+    const before = query.before ?? null;
+    const category = query.category ?? null;
+    const form = query.form ?? null;
+    const res = await this.db
+      .prepare(
+        `SELECT id, kind, title, summary, url, published_on, category, forms FROM news_items
+         WHERE (? IS NULL OR published_on < ?)
+           AND (? IS NULL OR category = ?)
+           AND (? IS NULL OR EXISTS (SELECT 1 FROM json_each(news_items.forms) WHERE value = ?))
+         ORDER BY published_on DESC, id ASC LIMIT ?`,
+      )
+      .bind(before, before, category, category, form, form, query.limit)
+      .all<Record<string, unknown>>();
+    return res.results.flatMap((row) => {
+      let forms: unknown = [];
+      try {
+        forms = JSON.parse(String(row.forms));
+      } catch {
+        // A row with unreadable forms is still shown, without them.
+      }
+      const item = sanitizeNewsItem({ ...row, publishedOn: row.published_on, forms });
+      return item ? [item] : [];
+    });
   }
 
   async recordRun(dataset: string, now: string, error: string | null): Promise<void> {

@@ -14,6 +14,11 @@ export interface Env {
   MAX_ACCOUNTS?: string;
   PUBLIC_DATA_ENABLED?: string;
   PROCESSING_TIMES_BASE_URL?: string;
+  /** "false" turns the daily news job off. Unset follows PUBLIC_DATA_ENABLED. */
+  NEWS_ENABLED?: string;
+  FEDERAL_REGISTER_BASE_URL?: string;
+  /** Comma separated RSS or Atom feed addresses (https, uscis.gov only). None by default. */
+  USCIS_FEED_URLS?: string;
   /** Secret for the admin API (targets, quarterly data imports, manual runs). */
   ADMIN_TOKEN?: string;
   /** Optional Workers Rate Limiting binding, keyed by client IP, for account creation. */
@@ -49,6 +54,10 @@ export interface Config {
   maxSnapshots: number;
   publicDataEnabled: boolean;
   processingTimesBaseUrl: string;
+  newsEnabled: boolean;
+  federalRegisterBaseUrl: string;
+  /** Valid feed addresses from USCIS_FEED_URLS: https on uscis.gov, no credentials. */
+  uscisFeedUrls: string[];
   /** Pages fetched per daily run and the gap between them, to be gentle with official sites. */
   publicBatchSize: number;
   publicGapMs: number;
@@ -64,7 +73,39 @@ const int = (value: string | undefined, fallback: number, min: number, max: numb
   return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 };
 
+/** An https base address without a trailing slash, or the fallback when unset or not https. */
+function httpsBase(value: string | undefined, fallback: string): string {
+  try {
+    const url = new URL((value ?? '').trim());
+    if (url.protocol === 'https:' && !url.username && !url.password) {
+      return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+    }
+  } catch {
+    // Unset or not an address: use the default.
+  }
+  return fallback;
+}
+
+/** Feed addresses that are https on uscis.gov (or a subdomain); anything else is dropped. */
+function feedUrls(value: string | undefined): string[] {
+  const urls: string[] = [];
+  for (const part of (value ?? '').split(/[\s,]+/)) {
+    try {
+      const url = new URL(part);
+      const host = url.hostname.toLowerCase();
+      const official = host === 'uscis.gov' || host.endsWith('.uscis.gov');
+      if (url.protocol === 'https:' && official && !url.username && !url.password) {
+        if (!urls.includes(url.href)) urls.push(url.href);
+      }
+    } catch {
+      // Empty or not an address: dropped.
+    }
+  }
+  return urls.slice(0, 10);
+}
+
 export function readConfig(env: Env): Config {
+  const publicDataEnabled = env.PUBLIC_DATA_ENABLED !== 'false';
   const baseUrl = (env.USCIS_BASE_URL || 'https://api-int.uscis.gov').replace(/\/+$/, '');
   return {
     baseUrl,
@@ -84,10 +125,16 @@ export function readConfig(env: Env): Config {
     refreshCooldownMinutes: 60,
     inactiveAccountDays: 180,
     maxSnapshots: 50,
-    publicDataEnabled: env.PUBLIC_DATA_ENABLED !== 'false',
+    publicDataEnabled,
     processingTimesBaseUrl: (
       env.PROCESSING_TIMES_BASE_URL || 'https://egov.uscis.gov/processing-times'
     ).replace(/\/+$/, ''),
+    newsEnabled: env.NEWS_ENABLED ? env.NEWS_ENABLED !== 'false' : publicDataEnabled,
+    federalRegisterBaseUrl: httpsBase(
+      env.FEDERAL_REGISTER_BASE_URL,
+      'https://www.federalregister.gov',
+    ),
+    uscisFeedUrls: feedUrls(env.USCIS_FEED_URLS),
     publicBatchSize: 60,
     publicGapMs: 1000,
     bulletinBackfillMonths: 24,

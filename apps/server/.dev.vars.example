@@ -5,3 +5,5 @@ USCIS_CLIENT_SECRET=
 RECEIPT_ENC_KEY=
 # openssl rand -base64 32
 RECEIPT_HMAC_KEY=
+# Optional: USCIS RSS or Atom feed addresses for the news feed (comma separated, https on uscis.gov).
+# USCIS_FEED_URLS=
