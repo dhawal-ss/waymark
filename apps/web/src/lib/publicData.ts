@@ -14,7 +14,7 @@ export class PublicDataError extends Error {}
 
 export const publicDataOn = (): boolean => store.data.prefs.publicData && Boolean(serverSync.url);
 
-async function get<T>(path: string): Promise<T> {
+export async function get<T>(path: string): Promise<T> {
   if (!serverSync.url) throw new PublicDataError('Set the sync server address in Settings first.');
   let res: Response;
   try {
@@ -143,7 +143,14 @@ export function bulletinCutoffs(points: BulletinPoint[]): {
   };
 }
 
-const OFFICIAL_HOSTS = ['uscis.gov', 'travel.state.gov', 'state.gov'];
+const OFFICIAL_HOSTS = [
+  'uscis.gov',
+  'travel.state.gov',
+  'state.gov',
+  'federalregister.gov',
+  'govinfo.gov',
+  'dhs.gov',
+];
 
 /** The link when it points to an official https source, else the fallback. */
 export function officialUrl(raw: unknown, fallback: string): string {
