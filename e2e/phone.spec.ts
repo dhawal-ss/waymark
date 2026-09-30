@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { loadExample, open, snackbar } from './helpers';
+import { addCaseManually, loadExample, open, openImport, snackbar } from './helpers';
 
 async function shareToApp(page: Page, fields: Record<string, string | { file: string }>) {
   await page.goto('./#/cases');
@@ -24,23 +24,26 @@ async function shareToApp(page: Page, fields: Record<string, string | { file: st
 const SHARED_JSON =
   '{"receiptNumber":"IOE0999000444","formType":"I131","events":[{"eventCode":"IAF","createdAtTimestamp":"2026-01-02T10:00:00Z"}]}';
 
-test('opens shared text in the import sheet for review', async ({ page }) => {
+test('imports shared case JSON right away and opens the case', async ({ page }) => {
   await shareToApp(page, { shared_text: SHARED_JSON });
-  const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
-  await expect(dialog.getByLabel('Case JSON')).toHaveValue(SHARED_JSON);
-  await expect(dialog.getByText('Check the shared text, then choose Import JSON.')).toBeVisible();
-  expect(new URL(page.url()).search).toBe('');
-  await dialog.getByRole('button', { name: 'Import JSON' }).click();
   await expect(snackbar(page, 'Added case IOE0999000444.')).toBeVisible();
+  await expect(page.locator('.hero').getByText('IOE0999000444')).toBeVisible();
+  expect(new URL(page.url()).search).toBe('');
 });
 
-test('opens a shared JSON file in the import sheet', async ({ page }) => {
+test('imports a shared JSON file, and reads a share only once', async ({ page }) => {
   await shareToApp(page, { shared_file: { file: SHARED_JSON } });
-  const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
-  await expect(dialog.getByLabel('Case JSON')).toHaveValue(SHARED_JSON);
-  // The shared text is read once.
+  await expect(snackbar(page, 'Added case IOE0999000444.')).toBeVisible();
   await page.goto('./?action=shared');
+  const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
   await expect(dialog.getByRole('alert')).toContainText('Nothing was shared.');
+});
+
+test('opens shared text Waymark cannot read in the import sheet', async ({ page }) => {
+  await shareToApp(page, { shared_text: 'Case Was Approved' });
+  const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
+  await expect(dialog.getByLabel('Case JSON')).toHaveValue('Case Was Approved');
+  await expect(dialog.getByRole('alert')).toContainText('No JSON found');
 });
 
 test('app shortcuts open the add case and import sheets', async ({ page }) => {
@@ -69,10 +72,9 @@ test('turns a notice appointment into a deadline and exports it to the calendar'
       },
     ],
   });
-  await page.getByRole('button', { name: 'Import USCIS JSON' }).click();
+  await openImport(page);
   await page.getByRole('dialog').getByLabel('Case JSON').fill(json);
   await page.getByRole('dialog').getByRole('button', { name: 'Import JSON' }).click();
-  await page.locator('a.card').click();
 
   const appointments = page.getByRole('region', { name: 'Upcoming appointments' });
   await expect(appointments.getByText('Biometrics appointment')).toBeVisible();
@@ -107,16 +109,14 @@ test('groups closed cases and searches once there are six or more', async ({ pag
   await loadExample(page);
   await expect(page.getByRole('searchbox', { name: 'Find a case' })).toHaveCount(0);
   for (const [i, receipt] of ['LIN0999000001', 'LIN0999000002', 'LIN0999000003'].entries()) {
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
-    await page.getByRole('button', { name: 'New case' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add case' });
-    await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(receipt);
-    await dialog.getByLabel('Received date').fill('2025-06-01');
-    await dialog.getByRole('textbox', { name: 'Name' }).fill(`Person ${i + 1}`);
-    if (i === 0) await dialog.getByLabel('Current status').selectOption('delivered');
-    await dialog.getByRole('button', { name: 'Add case' }).click();
-    await page.goto('./#/cases');
+    await addCaseManually(page, {
+      receipt,
+      date: '2025-06-01',
+      name: `Person ${i + 1}`,
+      status: i === 0 ? 'delivered' : undefined,
+    });
   }
+  await page.goto('./#/cases');
   const closed = page.getByRole('region', { name: /Closed \(1\)/ });
   await expect(closed).toBeVisible();
   await expect(closed.locator('a.card')).toHaveCount(0);

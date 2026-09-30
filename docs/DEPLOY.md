@@ -4,6 +4,32 @@ The sync server (`apps/server`) is optional. The web app works fully without it.
 Cloudflare Workers with D1 and a Cron Trigger, and checks receipts with the official USCIS Case
 Status API.
 
+## Easiest: deploy from GitHub Actions
+
+The Deploy web app workflow (`.github/workflows/pages.yml`) deploys the server before the web app
+when these repository secrets exist (Settings, Secrets and variables, Actions, New repository
+secret):
+
+| Secret                  | Where to get it                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard, Workers and Pages, Account details                                                            |
+| `CLOUDFLARE_API_TOKEN`  | My Profile, API Tokens, Create Token, "Edit Cloudflare Workers" template, then add the permission Account, D1, Edit |
+| `USCIS_CLIENT_ID`       | developer.uscis.gov, your app, Consumer key                                                                         |
+| `USCIS_CLIENT_SECRET`   | developer.uscis.gov, your app, Consumer secret                                                                      |
+
+Then run the workflow (Actions, Deploy web app, Run workflow) or push to the default branch. It
+finds or creates the D1 database, applies migrations, deploys the Worker with
+`ALLOWED_ORIGINS=https://<owner>.github.io`, creates the receipt keys and admin token once (they
+are never replaced), and builds the web app with the Worker's workers.dev address, so automatic
+checks are on for everyone who opens the app. Open Workers and Pages once in the Cloudflare
+dashboard first so the account has a workers.dev subdomain.
+
+Optional repository variables: `USCIS_BASE_URL` (the production base URL once USCIS approves it),
+`APP_ORIGINS` (comma-separated, when the app is served from another origin), and `VITE_SYNC_URL`
+(to point the app at a different server).
+
+The manual steps below do the same from your own machine.
+
 ## Before you start
 
 - A USCIS developer account with an approved app and the Case Status API product enabled. Start

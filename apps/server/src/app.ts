@@ -199,7 +199,7 @@ export function createApp(deps: AppDeps | (() => Promise<AppDeps>)) {
         c,
         409,
         'limit',
-        `Server sync tracks up to ${d.config.maxReceiptsPerAccount} receipts per device. Stop tracking one first.`,
+        `Automatic checks cover up to ${d.config.maxReceiptsPerAccount} cases per device. Delete a case you no longer need, or import its case page instead.`,
       );
     if ((await d.store.countSubscriptions(accountId)) >= d.config.maxReceiptsPerAccount)
       return limitError();

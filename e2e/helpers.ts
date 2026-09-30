@@ -61,3 +61,46 @@ export async function dismissSnackbar(page: Page): Promise<void> {
 export function snackbar(page: Page, text: string | RegExp) {
   return page.getByRole('status').filter({ hasText: text });
 }
+
+/** Open the import sheet from the Add menu on the Cases page. */
+export async function openImport(page: Page): Promise<void> {
+  await page.goto('./#/cases');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('button', { name: 'Import JSON' }).click();
+}
+
+/** Add a case by typing its details, the fallback when USCIS data is not available. */
+export async function addCaseManually(
+  page: Page,
+  c: { receipt: string; date: string; name?: string; status?: string },
+): Promise<void> {
+  await page.goto('./#/cases');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('button', { name: 'New case' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add case' });
+  await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(c.receipt);
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await dialog.getByRole('button', { name: 'Enter details yourself' }).click();
+  await dialog.getByLabel('Received date').fill(c.date);
+  if (c.name) await dialog.getByRole('textbox', { name: 'Name' }).fill(c.name);
+  if (c.status) await dialog.getByLabel('Current status').selectOption(c.status);
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/** Record window.open calls instead of opening tabs. */
+export async function stubWindowOpen(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    (window as unknown as { opened: string[] }).opened = [];
+    window.open = (url?: string | URL) => {
+      (window as unknown as { opened: string[] }).opened.push(String(url));
+      return null;
+    };
+  });
+  return () => page.evaluate(() => (window as unknown as { opened: string[] }).opened);
+}
+
+/** Simulate coming back to the app from another tab. */
+export async function comeBack(page: Page): Promise<void> {
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+}

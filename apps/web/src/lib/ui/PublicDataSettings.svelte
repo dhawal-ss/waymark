@@ -36,7 +36,7 @@
 <section class="group" aria-labelledby="public-title">
   <h2 id="public-title" class="t-title">Public data</h2>
   <p class="t-small muted">
-    Public data comes from the sync server address under Server sync. No account is needed.
+    Public data comes from the sync server address under Automatic checks. No account is needed.
   </p>
   {#key `${on}-${serverSync.url}-${serverAddress.error}`}
     <Switch
@@ -67,7 +67,7 @@
     {/if}
   {/if}
   {#if serverAddress.error && !serverSync.url}
-    <p class="alert" role="alert">{serverAddress.error} Enter it under Server sync.</p>
+    <p class="alert" role="alert">{serverAddress.error} Enter it under Automatic checks.</p>
   {/if}
 </section>
 

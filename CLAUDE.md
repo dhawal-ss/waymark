@@ -51,11 +51,11 @@ apps/web         Svelte 5 + Vite PWA
   src/lib/db.ts    IndexedDB schema versions and upgrades
   src/lib/stores   data (app data, persistence, undo), prefs, router, snackbar, ui (sheets)
   src/lib/actions.ts  Domain actions; every change goes through mutate()
-  src/lib/sync.svelte.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
+  src/lib/sync.svelte.ts  Case page flow (open JSON tab, automatic clipboard import on return)
   src/lib/launch.ts, install.svelte.ts, backup.svelte.ts  Share target and shortcuts, install,
                    backups and the backup reminder
   public/share-target.js  Service worker handler for the POST share target (imported by Workbox)
-  src/lib/serverSync.svelte.ts  Optional server sync client (off by default)
+  src/lib/serverSync.svelte.ts  Automatic checks client: lookup by receipt, tracks every case
   src/lib/publicData.ts  Public data client (off by default); linked series and cutoffs
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
@@ -110,6 +110,9 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
   `.dev.vars`. Never log receipt numbers or tokens. Server results reach the app as `ParsedCase`
   and go through `mergeImport`, like manual imports.
 - The sync key is stored with `saveSetting` outside AppData so exports never contain it.
+- Adding a case asks only for the receipt number. Get everything else from USCIS (automatic
+  checks, then the copied case page); typed details are the last resort. Do not add questions to
+  the add flow.
 - Public data comes only from official sources (egov.uscis.gov, travel.state.gov, uscis.gov files).
   Keep parsers tolerant and report problems in plain language; never guess values.
 - Server scripts are run by Node with type stripping: import only types from files that use

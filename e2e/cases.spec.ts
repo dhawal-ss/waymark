@@ -1,19 +1,67 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { dismissSnackbar, FIXTURES, loadExample, open, snackbar } from './helpers';
+import {
+  comeBack,
+  dismissSnackbar,
+  FIXTURES,
+  loadExample,
+  open,
+  openImport,
+  snackbar,
+  stubWindowOpen,
+} from './helpers';
 
 const basic = readFileSync(`${FIXTURES}/case-basic.json`, 'utf8');
 const rescan = readFileSync(`${FIXTURES}/case-rescan.json`, 'utf8');
 
-test('shows the empty state with its three actions', async ({ page }) => {
+test('shows the empty state with its actions', async ({ page }) => {
   await open(page, '/cases');
   await expect(page.getByRole('heading', { name: 'No cases yet' })).toBeVisible();
+  await expect(page.getByText('Add a case with its receipt number.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add case' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Import USCIS JSON' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Load example' })).toBeVisible();
 });
 
-test('adds a case with validation and opens its detail page', async ({ page }) => {
+test('adds a case from the receipt number and the copied case page', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await open(page, '/cases');
+  const opened = await stubWindowOpen(page);
+  await page.getByRole('button', { name: 'Add case' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add case' });
+  // The receipt number is the only question.
+  await expect(dialog.getByRole('textbox')).toHaveCount(1);
+  await dialog.getByRole('textbox', { name: 'Receipt number' }).fill('ioe-0999-000-111');
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await expect(dialog.getByText('Get the details for IOE0999000111')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Open case page' }).click();
+  expect(await opened()).toEqual([
+    'https://my.uscis.gov/account/case-service/api/cases/IOE0999000111',
+  ]);
+  // Copy the page in the other tab and come back: Waymark imports it and opens the case.
+  await page.evaluate((text) => navigator.clipboard.writeText(text), basic);
+  await comeBack(page);
+  await expect(dialog).toBeHidden();
+  await expect(snackbar(page, 'Added case IOE0999000111.')).toBeVisible();
+  await expect(page.locator('.hero').getByText('IOE0999000111')).toBeVisible();
+  await expect(page.getByText(/Updated from USCIS just now/)).toBeVisible();
+});
+
+test('adds a case when the case page is pasted into the receipt field', async ({ page }) => {
+  await open(page, '/cases');
+  await page.getByRole('button', { name: 'Add case' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add case' });
+  await dialog.getByRole('textbox', { name: 'Receipt number' }).fill('{"receiptNumber": 1');
+  await expect(dialog.getByRole('textbox', { name: 'Receipt number' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(basic);
+  await expect(dialog).toBeHidden();
+  await expect(snackbar(page, 'Added case IOE0999000111.')).toBeVisible();
+  await expect(page.locator('.hero').getByText('IOE0999000111')).toBeVisible();
+});
+
+test('adds a case with typed details, with validation', async ({ page }) => {
   await open(page, '/cases');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('button', { name: 'New case' }).click();
@@ -26,6 +74,9 @@ test('adds a case with validation and opens its detail page', async ({ page }) =
   await expect(receipt).toHaveAccessibleDescription(/3 letters and 10 digits/);
 
   await receipt.fill('lin-09-990-00222');
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await dialog.getByRole('button', { name: 'Enter details yourself' }).click();
+  await expect(receipt).toHaveValue('lin-09-990-00222');
   await dialog.getByLabel('Received date').fill('2099-01-01');
   await expect(dialog.getByText('cannot be in the future')).toBeVisible();
   await dialog.getByLabel('Received date').fill('2025-01-15');
@@ -53,8 +104,7 @@ test('adds a case with validation and opens its detail page', async ({ page }) =
 test('imports pasted USCIS JSON, undoes it, and marks new events on re-import', async ({
   page,
 }) => {
-  await open(page, '/cases');
-  await page.getByRole('button', { name: 'Import USCIS JSON' }).click();
+  await openImport(page);
   const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
   await dialog.getByLabel('Case JSON').fill('not json');
   await dialog.getByRole('button', { name: 'Import JSON' }).click();
@@ -65,14 +115,14 @@ test('imports pasted USCIS JSON, undoes it, and marks new events on re-import', 
   await expect(dialog).toBeHidden();
   await expect(snackbar(page, 'Added case IOE0999000111.')).toBeVisible();
   await snackbar(page, 'Added case IOE0999000111.').getByRole('button', { name: 'Undo' }).click();
+  await page.goto('./#/cases');
   await expect(page.getByRole('heading', { name: 'No cases yet' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Import USCIS JSON' }).click();
+  await openImport(page);
   await page.getByRole('dialog').getByLabel('Case JSON').fill(basic);
   await page.getByRole('dialog').getByRole('button', { name: 'Import JSON' }).click();
   await dismissSnackbar(page);
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('button', { name: 'Import JSON' }).click();
+  await openImport(page);
   await page.getByRole('dialog').getByLabel('Case JSON').fill(rescan);
   await page.getByRole('dialog').getByRole('button', { name: 'Import JSON' }).click();
   await expect(snackbar(page, '2 new events for IOE0999000111.')).toBeVisible();
@@ -87,35 +137,44 @@ test('imports pasted USCIS JSON, undoes it, and marks new events on re-import', 
   await expect(page.getByRole('button', { name: 'Mark as seen' })).toBeHidden();
 });
 
-test('sync opens the case JSON and imports from the clipboard on return', async ({
+const DA_JSON = JSON.stringify({
+  receiptNumber: 'MSC0000000003',
+  events: [{ eventCode: 'DA', createdAtTimestamp: new Date().toISOString() }],
+});
+
+test('imports the copied case page by itself on return when the clipboard is allowed', async ({
   page,
   context,
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await loadExample(page);
   await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
-  await page.evaluate(() => {
-    (window as unknown as { opened: string[] }).opened = [];
-    window.open = (url?: string | URL) => {
-      (window as unknown as { opened: string[] }).opened.push(String(url));
-      return null;
-    };
-  });
-  await page.getByRole('button', { name: 'Open case JSON' }).click();
-  expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
+  const opened = await stubWindowOpen(page);
+  await page.getByRole('button', { name: 'Open case page' }).click();
+  expect(await opened()).toEqual([
     'https://my.uscis.gov/account/case-service/api/cases/MSC0000000003',
   ]);
-  const json = JSON.stringify({
-    receiptNumber: 'MSC0000000003',
-    events: [{ eventCode: 'DA', createdAtTimestamp: new Date().toISOString() }],
-  });
-  await page.evaluate((text) => navigator.clipboard.writeText(text), json);
-  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  const prompt = snackbar(page, 'Copied the case JSON?');
+  await page.evaluate((text) => navigator.clipboard.writeText(text), DA_JSON);
+  await comeBack(page);
+  await expect(snackbar(page, 'Updated MSC0000000003.')).toBeVisible();
+  await expect(page.locator('.hero').getByText('Approved', { exact: true })).toBeVisible();
+});
+
+test('offers Import on return when the clipboard needs permission', async ({ page }) => {
+  await loadExample(page);
+  await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
+  await stubWindowOpen(page);
+  await page.evaluate((text) => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { readText: () => Promise.resolve(text) },
+    });
+  }, DA_JSON);
+  await page.getByRole('button', { name: 'Open case page' }).click();
+  await comeBack(page);
+  const prompt = snackbar(page, 'Copied the case page?');
   await expect(prompt).toBeVisible();
   await prompt.getByRole('button', { name: 'Import' }).click();
   await expect(snackbar(page, 'Updated MSC0000000003.')).toBeVisible();
-  await expect(page.locator('.hero').getByText('Approved', { exact: true })).toBeVisible();
 });
 
 test('falls back to the paste sheet when clipboard reading is blocked', async ({ page }) => {
@@ -127,10 +186,10 @@ test('falls back to the paste sheet when clipboard reading is blocked', async ({
       value: { readText: () => Promise.reject(new Error('denied')) },
     });
   });
-  await page.getByRole('button', { name: 'Open case JSON' }).click();
-  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.getByRole('button', { name: 'Open case page' }).click();
+  await comeBack(page);
   // The case page keeps an Import button after the snackbar is gone.
-  await page.getByRole('button', { name: 'Import copied JSON' }).click();
+  await page.getByRole('button', { name: 'Import copied page' }).click();
   const dialog = page.getByRole('dialog', { name: 'Import USCIS case JSON' });
   await expect(dialog.getByRole('alert')).toContainText('did not allow reading the clipboard');
 });

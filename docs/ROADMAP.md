@@ -116,7 +116,15 @@ Case tracking:
       without a decision.
 - [x] The summary leads with new USCIS events and overdue deadlines. Cards show each case's next
       deadline.
-- [x] Manual sync keeps an Import copied JSON button on the case for 30 minutes.
+- [x] The case page flow keeps an Import copied page button on the case for 30 minutes.
+- [x] Add case asks only for the receipt number. Automatic checks look it up with the official
+      API; otherwise the copied case page is imported by itself on return (once clipboard access
+      is allowed), when pasted into the receipt field, or when shared. Typed details are the last
+      resort.
+- [x] Automatic checks are on when a server address is known, track every open case (never
+      example cases), and can be turned off in Settings.
+- [x] The GitHub Pages workflow deploys the sync server to Cloudflare when its secrets are set,
+      and builds the app with its address.
 
 Reliability:
 

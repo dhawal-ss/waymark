@@ -2,6 +2,7 @@
   import { copyText } from '../actions';
   import { relativeTime } from '../format';
   import {
+    autoChecks,
     disableServerSync,
     enableServerSync,
     pull,
@@ -21,30 +22,79 @@
 </script>
 
 <section class="group" aria-labelledby="server-title">
-  <h2 id="server-title" class="t-title">Server sync</h2>
-  {#if !enabled}
-    <p>Off. Cases update only when you import the case JSON yourself.</p>
+  <h2 id="server-title" class="t-title">Automatic checks</h2>
+  {#if enabled || (autoChecks() && !serverSync.error)}
+    <p>
+      On. {tracked === 1 ? '1 case is' : `${tracked} cases are`} checked with USCIS twice a day through
+      <span class="t-mono">{serverSync.url.replace(/^https?:\/\//, '')}</span>.
+      {serverSync.lastPullAt ? `Last updated ${relativeTime(serverSync.lastPullAt)}.` : ''}
+    </p>
+    {#if serverSync.environment === 'sandbox'}
+      <p class="note t-small">
+        <Icon name="info" size={18} />
+        <span>
+          Test system: the server uses the USCIS sandbox, which has test cases only. Real receipt
+          numbers are not found until USCIS approves production access for this server.
+        </span>
+      </p>
+    {/if}
     <p class="t-small muted">
-      Turning this on sends the receipt numbers of the cases you choose to the sync server below.
-      The server checks them with the official USCIS Case Status API about twice a day and stores
-      them encrypted. Names, notes, and everything else stay on this device. No USCIS sign-in is
-      used.
+      Only receipt numbers are sent. The server stores them encrypted. Names, notes, and everything
+      else stay on this device.
+    </p>
+    <div class="actions">
+      {#if enabled}
+        <Button
+          variant="tonal"
+          icon="sync"
+          disabled={serverSync.busy}
+          onclick={() => pull({ quiet: false })}>Check for updates</Button
+        >
+        <Button
+          variant="outlined"
+          icon="content_copy"
+          onclick={() => copyText(serverSync.token, 'Copied the sync key. Keep it private.')}
+          >Copy sync key</Button
+        >
+      {/if}
+      <Button
+        variant="outlined"
+        icon="delete"
+        class="danger"
+        disabled={serverSync.busy}
+        onclick={() => disableServerSync()}
+      >
+        Turn off and delete server data
+      </Button>
+    </div>
+    {#if enabled}
+      <p class="t-small muted">
+        The sync key links another device to the same server data. Anyone with it can see which
+        receipt numbers you track.
+      </p>
+    {/if}
+  {:else}
+    <p>Off. Cases update when you import the case page from your USCIS account.</p>
+    <p class="t-small muted">
+      Turning this on sends your receipt numbers to the Waymark server below. It checks them with
+      the official USCIS Case Status API twice a day and stores them encrypted. Names, notes, and
+      everything else stay on this device. No USCIS sign-in is used.
     </p>
     <TextField
-      label="Sync server address"
+      label="Server address"
       bind:value={serverAddress.draft}
       type="url"
       inputmode="url"
       autocomplete="off"
       spellcheck={false}
       error={serverAddress.error || undefined}
-      supporting="The address of a Waymark sync server, starting with https://. Public data below uses it too."
+      supporting="The address of a Waymark server, starting with https://. Public data below uses it too."
     />
     <div class="actions">
       <Button
         icon="sync"
         disabled={serverSync.busy || !serverAddress.draft.trim()}
-        onclick={() => enableServerSync(serverAddress.draft)}>Turn on server sync</Button
+        onclick={() => enableServerSync(serverAddress.draft)}>Turn on automatic checks</Button
       >
     </div>
     <details>
@@ -60,53 +110,6 @@
         </div>
       </div>
     </details>
-  {:else}
-    <p>
-      On. Server <span class="t-mono">{serverSync.url.replace(/^https?:\/\//, '')}</span>.
-      {tracked === 1 ? '1 case is' : `${tracked} cases are`} tracked.
-      {serverSync.lastPullAt
-        ? `Last checked for updates ${relativeTime(serverSync.lastPullAt)}.`
-        : ''}
-    </p>
-    {#if serverSync.environment === 'sandbox'}
-      <p class="note t-small">
-        <Icon name="info" size={18} />
-        <span>
-          Sandbox: the USCIS sandbox has test data only. Real receipt numbers return "no case" until
-          USCIS approves production access for this server.
-        </span>
-      </p>
-    {/if}
-    <p class="t-small muted">
-      Turn tracking on or off for each case on its page, under USCIS data.
-    </p>
-    <div class="actions">
-      <Button
-        variant="tonal"
-        icon="sync"
-        disabled={serverSync.busy}
-        onclick={() => pull({ quiet: false })}>Check for updates</Button
-      >
-      <Button
-        variant="outlined"
-        icon="content_copy"
-        onclick={() => copyText(serverSync.token, 'Copied the sync key. Keep it private.')}
-        >Copy sync key</Button
-      >
-      <Button
-        variant="outlined"
-        icon="delete"
-        class="danger"
-        disabled={serverSync.busy}
-        onclick={() => disableServerSync()}
-      >
-        Turn off and delete server data
-      </Button>
-    </div>
-    <p class="t-small muted">
-      The sync key links another device to the same server data. Anyone with it can see which
-      receipt numbers you track.
-    </p>
   {/if}
   {#if serverSync.error}<p class="alert" role="alert">{serverSync.error}</p>{/if}
 </section>

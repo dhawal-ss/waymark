@@ -96,13 +96,10 @@
   <EmptyState
     icon="folder"
     title="No cases yet"
-    body="Add a case with the receipt number from your receipt notice, or import the case JSON from your USCIS account."
+    body="Add a case with its receipt number. Waymark gets the rest from USCIS."
   >
     {#snippet actions()}
       <Button icon="add" onclick={() => openSheet({ kind: 'case' })}>Add case</Button>
-      <Button variant="tonal" icon="upload_file" onclick={() => openSheet({ kind: 'import' })}
-        >Import USCIS JSON</Button
-      >
       <Button variant="text" onclick={loadExample}>Load example</Button>
     {/snippet}
   </EmptyState>

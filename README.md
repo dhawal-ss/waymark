@@ -8,8 +8,8 @@ the design.
 
 ## Privacy
 
-- All data is stored in your browser (IndexedDB) on this device. There is no account, and the
-  optional sync server is off by default. Export, share a backup, import, and delete everything
+- All data is stored in your browser (IndexedDB) on this device. There is no sign-up. Automatic
+  checks send only receipt numbers to your own Waymark server, and can be turned off. Export, share a backup, import, and delete everything
   are in Settings; the Cases page reminds you to back up after 30 days.
 - Production builds ship a strict Content Security Policy; shared case JSON arrives by POST to
   the service worker and never appears in a URL.
@@ -32,26 +32,33 @@ pnpm test:e2e     # Playwright and axe at 360px and 1280px
 The design system reference is at `#/settings/design` (linked from Settings in development
 builds). To try the app on a phone, see [docs/HOSTING.md](docs/HOSTING.md).
 
-## Syncing with USCIS
+## Adding a case
 
-USCIS does not let other sites read a signed-in account, so sync is manual:
+Add case asks for the receipt number only. Waymark then gets the rest from USCIS:
 
-1. On a case, choose Open case JSON. Waymark opens
-   `https://my.uscis.gov/account/case-service/api/cases/{RECEIPT}` in a new tab.
-2. Sign in if asked, select all, and copy the page.
-3. Return to Waymark and choose Import copied JSON, or use Paste JSON or a saved file. On
-   Android with the app installed, you can also share the text or a saved JSON file to Waymark.
+1. **Automatic checks** (when the app has a Waymark server): the server looks the receipt up with
+   the official USCIS Case Status API and the case appears with its form, dates, and status. It
+   is checked again twice a day, and new events show on the Cases and Updates pages.
+2. **Case page from your USCIS account** (always available, and the only source of the full event
+   history and notices): Waymark opens
+   `https://my.uscis.gov/account/case-service/api/cases/{RECEIPT}` in a new tab. Sign in if asked,
+   select all, copy, and come back. Waymark imports the copied page by itself once Chrome allows
+   clipboard access (the first time, tap Import). You can also paste the page into the receipt
+   field, or share it to the installed app.
+3. **Enter details yourself**, as a last resort.
 
-Waymark keeps only events, notices, dates, form type, and channel. Event code meanings are
+USCIS does not let other sites read a signed-in account, so Waymark never fetches the case page
+itself. Waymark keeps only events, notices, dates, form type, and channel. Event code meanings are
 community documented and shown as unofficial.
 
-### Optional server sync
+### Automatic checks
 
-A Waymark sync server can check the cases you choose with the official USCIS Case Status API
-about twice a day. It is off by default. When on, only the receipt numbers of tracked cases leave
-the device; the server stores them encrypted and keeps results only when they change. See
-[docs/DEPLOY.md](docs/DEPLOY.md) to run one. Until USCIS approves production access, the server
-uses the sandbox, which has test data only.
+A Waymark server checks every open case with the official USCIS Case Status API about twice a day.
+It is on when the app is built with a server address (the GitHub Pages deploy does this once the
+Cloudflare secrets are set, see [docs/DEPLOY.md](docs/DEPLOY.md)) and can be turned off in
+Settings. Only receipt numbers leave the device, never example cases; the server stores them
+encrypted and keeps results only when they change. Until USCIS approves production access, the
+server uses the sandbox, which has test cases only, so real receipts fall back to the case page.
 
 ### Optional public data
 

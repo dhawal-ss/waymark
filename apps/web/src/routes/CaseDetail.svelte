@@ -217,29 +217,27 @@
     </div>
     {#if c.uscis}
       <p class="muted">
-        Last synced {relativeTime(c.uscis.lastSyncedAt)}. {plural(c.uscis.events.length, 'event')}{c
-          .uscis.closed
-          ? '. USCIS marks this case closed.'
-          : '.'}
+        Updated from USCIS {relativeTime(c.uscis.lastSyncedAt)}. {plural(
+          c.uscis.events.length,
+          'event',
+        )}{c.uscis.closed ? '. USCIS marks this case closed.' : '.'}
       </p>
     {:else}
-      <p class="muted">
-        Not synced. Import the case JSON from your USCIS account to add official events.
-      </p>
+      <p class="muted">No USCIS data yet. Get it from your USCIS account.</p>
     {/if}
     <div class="row">
       {#if isWaitingFor(c.id)}
         <Button icon="content_paste" onclick={() => importFromClipboard(c.id)}
-          >Import copied JSON</Button
+          >Import copied page</Button
         >
       {/if}
       <Button
         variant={isWaitingFor(c.id) ? 'outlined' : 'tonal'}
         icon="open_in_new"
-        onclick={() => startSync(c.receipt, c.id)}>Open case JSON</Button
+        onclick={() => startSync(c.receipt, c.id)}>Open case page</Button
       >
       <Button
-        variant="outlined"
+        variant="text"
         icon="content_paste"
         onclick={() => openSheet({ kind: 'import', caseId: c.id })}>Paste JSON</Button
       >
@@ -248,9 +246,8 @@
         >{/if}
     </div>
     <p class="t-small muted">
-      Open case JSON opens my.uscis.gov in a new tab while you are signed in. Select all and copy
-      the page, come back, and choose Import copied JSON. Event meanings are community documented,
-      not official.
+      Open case page opens my.uscis.gov while you are signed in. Select all, copy, and come back;
+      Waymark imports it. Event meanings are community documented, not official.
     </p>
     {#if syncEnabled()}<ServerTracking {c} />{/if}
   </section>

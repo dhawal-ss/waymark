@@ -31,11 +31,12 @@ still applies there.
 2. Open Settings in Waymark and choose Install Waymark, or use Chrome's menu and choose Install app.
 3. Waymark now opens from the home screen and works offline.
 4. Long-press the icon for the New case and Import USCIS JSON shortcuts.
-5. To import case JSON: on a case, choose Open case JSON (sign in on my.uscis.gov if asked).
-   Select all, then either:
-   - choose Share in the selection menu and pick Waymark (the import sheet opens with the text
-     for review), or
-   - choose Copy, come back to Waymark, and tap Import copied JSON on the case.
+5. Add a case: tap Add case and enter the receipt number. With automatic checks on, the case
+   appears with its status. Otherwise, or for the full history, choose Open case page (sign in on
+   my.uscis.gov if asked), select all, then either:
+   - choose Copy and come back to Waymark. The first time, tap Import and allow clipboard access;
+     after that Waymark imports the page by itself when you come back, or
+   - choose Share in the selection menu and pick Waymark. It imports right away.
      A JSON file saved from my.uscis.gov can also be shared to Waymark from the Files app.
 
 ## What to check on the phone
@@ -44,7 +45,8 @@ still applies there.
   connection.
 - Add a case (the keyboard opens on the receipt field; the Add case button stays above the
   keyboard).
-- Import case JSON by sharing and by Import copied JSON.
+- Add a case with only the receipt number, then import the case page by coming back after
+  copying it, and by sharing it.
 - Quick statuses: pick one from the menu next to Log a status. It logs at once and offers Undo.
   Pick Evidence requested to add a response deadline.
 - Deadlines: open one and choose Open in Google Calendar, or Download .ics file.

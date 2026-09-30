@@ -55,7 +55,13 @@ page is a lazy chunk.
 - Other tabs get a BroadcastChannel message after each save and reload from IndexedDB. When another
   tab needs to upgrade or delete the database, this tab closes its connection and asks for a reload.
 
-## Server sync (optional)
+## Automatic checks (server sync)
+
+- Add case asks only for the receipt number. With a server address known (built in with
+  `VITE_SYNC_URL`, or entered in Settings) and automatic checks not turned off, the app creates an
+  anonymous account on first use, subscribes the receipt, and adds the case from the result.
+  Every open, non-example case is subscribed at each pull. Without a result, the add sheet falls
+  back to the case page flow in `sync.svelte.ts`.
 
 - `apps/server` is a Hono app on Cloudflare Workers with D1. A Cron Trigger runs `pollDue` every
   30 minutes: it picks receipts not checked within the poll interval (oldest first, failing ones

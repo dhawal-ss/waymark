@@ -23,11 +23,13 @@
   let confirmingDelete = $state(false);
   async function confirmDelete() {
     confirmingDelete = false;
-    const serverDeleted = syncEnabled() ? await disableServerSync({ quiet: true }) : true;
+    const serverDeleted = syncEnabled()
+      ? await disableServerSync({ quiet: true, turnOff: false })
+      : true;
     deleteEverything(
       serverDeleted
         ? undefined
-        : 'The sync server did not delete your data. Turn off server sync when you are online.',
+        : 'The sync server did not delete your data. Turn off automatic checks when you are online.',
     );
   }
 
@@ -131,29 +133,27 @@
 </section>
 
 <section class="group" aria-labelledby="sync-title">
-  <h2 id="sync-title" class="t-title">Sync status</h2>
+  <h2 id="sync-title" class="t-title">How cases update</h2>
   <dl class="sync">
     <div>
-      <dt class="t-label">Works</dt>
+      <dt class="t-label">Automatic checks</dt>
       <dd>
-        Manual sync: on a case, choose Sync to open your case JSON on my.uscis.gov, copy the page,
-        and import it. Server sync, when turned on below: a Waymark sync server checks the cases you
-        choose with the official USCIS Case Status API.
+        When they are on, a Waymark server checks each receipt number with the official USCIS Case
+        Status API twice a day. It gives the status and dates.
       </dd>
     </div>
     <div>
-      <dt class="t-label">Does not work</dt>
+      <dt class="t-label">Case page</dt>
       <dd>
-        Reading your signed-in USCIS account automatically. USCIS does not let other sites read it,
-        and Waymark never asks for or stores your USCIS password.
+        For the full event history and notices, open the case page from a case, copy it, and come
+        back. Waymark imports it. You can also share the page to Waymark.
       </dd>
     </div>
     <div>
-      <dt class="t-label">Limits</dt>
+      <dt class="t-label">Never</dt>
       <dd>
-        The official API gives status text and dates, not the detailed events or notices in the case
-        JSON. Until USCIS approves production access, the server can reach only the sandbox, which
-        has test data.
+        Waymark never signs in to your USCIS account or asks for your USCIS password. USCIS does not
+        let other sites read it.
       </dd>
     </div>
   </dl>
@@ -204,8 +204,7 @@
       <p id="confirm-delete">
         Delete all cases, deadlines, series, and tool data on this device?
         {#if syncEnabled()}
-          This also turns off server sync and deletes your receipt numbers from the sync server,
-          which cannot be undone.
+          This also deletes your receipt numbers from the sync server, which cannot be undone.
         {/if}
       </p>
       <div class="actions">

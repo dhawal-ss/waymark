@@ -1,9 +1,8 @@
 <script lang="ts">
   import type { Case } from '@waymark/core';
   import { relativeTime } from '../format';
-  import { refreshCase, serverSync, trackCase, untrackCase } from '../serverSync.svelte';
+  import { refreshCase, serverSync } from '../serverSync.svelte';
   import Button from './Button.svelte';
-  import Switch from './Switch.svelte';
 
   let { c }: { c: Case } = $props();
 
@@ -11,25 +10,17 @@
   const sub = $derived(id ? serverSync.subscriptions[id] : undefined);
   const description = $derived(
     !id
-      ? 'Sends only the receipt number to the sync server, which checks it about twice a day.'
+      ? 'Automatic checks start with the next update.'
       : sub?.lastError
-        ? `USCIS error: ${sub.lastError}`
+        ? `Automatic check: ${sub.lastError}`
         : sub?.lastCheckedAt
-          ? `Checked ${relativeTime(sub.lastCheckedAt)}.`
-          : 'Waiting for the first check.',
+          ? `Checked automatically ${relativeTime(sub.lastCheckedAt)}. Checks run twice a day.`
+          : 'Waiting for the first automatic check.',
   );
 </script>
 
 <div class="tracking">
-  {#key `${Boolean(id)}-${serverSync.busy}`}
-    <Switch
-      label="Track with the official USCIS API"
-      {description}
-      checked={Boolean(id)}
-      disabled={serverSync.busy}
-      onchange={(on) => (on ? trackCase(c.id) : untrackCase(c.id))}
-    />
-  {/key}
+  <p class="t-small muted">{description}</p>
   {#if id}
     <div>
       <Button
@@ -50,6 +41,9 @@
     gap: 4px;
     padding-top: 8px;
     border-top: 1px solid var(--outline-variant);
+  }
+  .tracking p {
+    margin: 0;
   }
   .error {
     color: var(--error);

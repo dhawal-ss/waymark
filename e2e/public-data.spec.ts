@@ -71,7 +71,7 @@ async function turnOnPublicData(page: Page) {
   const section = page.locator('section', {
     has: page.getByRole('heading', { name: 'Public data' }),
   });
-  await page.getByLabel('Sync server address').fill(SYNC_URL);
+  await page.getByLabel('Server address').fill(SYNC_URL);
   await section.getByRole('switch', { name: 'Load public data from the sync server' }).check();
   await expect(section.getByText(/Processing times:\s*updated just now/)).toBeVisible();
 }
@@ -189,10 +189,10 @@ test('rejects an insecure public data address and leaves the switch off', async 
   const section = page.locator('section', {
     has: page.getByRole('heading', { name: 'Public data' }),
   });
-  await page.getByLabel('Sync server address').fill('http://example.org');
+  await page.getByLabel('Server address').fill('http://example.org');
   await section.getByRole('switch', { name: 'Load public data from the sync server' }).click();
   await expect(section.getByRole('alert')).toHaveText(
-    'Enter the server address starting with https://. Enter it under Server sync.',
+    'Enter the server address starting with https://. Enter it under Automatic checks.',
   );
   // The error also shows on the address field itself.
   await expect(

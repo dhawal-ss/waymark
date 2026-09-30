@@ -1,7 +1,15 @@
-// Optional sync through a Waymark sync server that checks receipts with the official USCIS Case
-// Status API. Off by default. Only receipt numbers of cases the user chooses are sent. The sync
-// key is stored outside the exported data because it is a credential.
-import { describeMerge, isValidReceipt, SUBSCRIPTION_ID, type ParsedCase } from '@waymark/core';
+// Automatic checks through a Waymark sync server, which checks receipts with the official USCIS
+// Case Status API. On when the app is built with a server address (VITE_SYNC_URL) or the user
+// enters one, until the user turns it off. Only receipt numbers are sent; names, notes, and
+// everything else stay on the device. The sync key is stored outside the exported data because it
+// is a credential.
+import {
+  describeMerge,
+  isValidReceipt,
+  SUBSCRIPTION_ID,
+  type Case,
+  type ParsedCase,
+} from '@waymark/core';
 import { mergeFromServer } from './actions';
 import { loadSetting, mutate, nowInstant, saveSetting, store } from './stores/data.svelte';
 import { showSnackbar } from './stores/snackbar.svelte';
@@ -15,6 +23,8 @@ interface Saved {
   token: string;
   cursor: number;
   environment: SyncState['environment'];
+  /** The user turned automatic checks off. */
+  off?: boolean;
 }
 
 export interface SubscriptionView {
@@ -29,6 +39,7 @@ interface SyncState {
   token: string;
   cursor: number;
   environment: 'sandbox' | 'production' | '';
+  off: boolean;
   busy: boolean;
   lastPullAt: string;
   error: string;
@@ -40,6 +51,7 @@ export const serverSync: SyncState = $state({
   token: '',
   cursor: 0,
   environment: '',
+  off: false,
   busy: false,
   lastPullAt: '',
   error: '',
@@ -52,6 +64,12 @@ const ADDRESS_ERROR = 'Enter the server address starting with https://.';
 export const serverAddress = $state({ draft: DEFAULT_SERVER_URL || 'https://', error: '' });
 
 export const syncEnabled = (): boolean => Boolean(serverSync.token && serverSync.url);
+
+/** Open cases that automatic checks should track but do not yet. Example cases are never sent. */
+const needsTracking = (c: Case) => !c.serverTracking && !c.uscis?.closed && !c.demo;
+
+/** Automatic checks can run: a server address is known and the user has not turned them off. */
+export const autoChecks = (): boolean => Boolean(serverSync.url) && !serverSync.off;
 
 export class SyncError extends Error {
   readonly status: number;
@@ -82,6 +100,7 @@ async function persist(): Promise<void> {
         token: serverSync.token,
         cursor: serverSync.cursor,
         environment: serverSync.environment,
+        off: serverSync.off || undefined,
       }
     : undefined;
   await saveSetting(SETTING, saved);
@@ -144,13 +163,16 @@ function remember(subs: SubscriptionView[]): void {
 export async function initServerSync(): Promise<void> {
   const saved = await loadSetting<Saved>(SETTING);
   if (saved?.url) serverSync.url = saved.url;
+  serverSync.off = Boolean(saved?.off);
   if (serverSync.url) serverAddress.draft = serverSync.url;
   if (saved?.token && saved.url) {
     serverSync.token = saved.token;
     serverSync.cursor = saved.cursor ?? 0;
     serverSync.environment = saved.environment ?? '';
-    void pull({ quiet: true });
   }
+  if (syncEnabled()) void pull({ quiet: true });
+  // Cases added before automatic checks were available are tracked from now on.
+  else if (autoChecks() && store.data.cases.some(needsTracking)) void startAutoChecks();
   setInterval(() => {
     if (syncEnabled() && document.visibilityState === 'visible') void pull({ quiet: false });
   }, PULL_EVERY_MS);
@@ -162,6 +184,12 @@ export async function initServerSync(): Promise<void> {
   });
 }
 
+// A pull asked for while another request runs happens right after it.
+let pullAgain = false;
+// Receipts being added right now: their subscriptions are not orphans yet.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- bookkeeping, not reactive state
+const adding = new Set<string>();
+
 async function run<T>(task: () => Promise<T>): Promise<T | null> {
   serverSync.busy = true;
   serverSync.error = '';
@@ -172,10 +200,52 @@ async function run<T>(task: () => Promise<T>): Promise<T | null> {
     return null;
   } finally {
     serverSync.busy = false;
+    if (pullAgain) {
+      pullAgain = false;
+      void pull({ quiet: true });
+    }
   }
 }
 
-/** Create an anonymous account on the server. */
+let creating: Promise<void> | null = null;
+
+/** Create an anonymous account on the server, once. Throws a SyncError when it cannot. */
+function ensureAccount(): Promise<void> {
+  if (serverSync.token) return Promise.resolve();
+  creating ??= createAccount().finally(() => (creating = null));
+  return creating;
+}
+
+async function createAccount(): Promise<void> {
+  const health = await api<{ environment: 'sandbox' | 'production'; uscisConfigured: boolean }>(
+    '/v1/health',
+    {},
+    '',
+  );
+  serverSync.environment = health.environment;
+  const account = await api<{ token: string }>('/v1/accounts', { method: 'POST' }, '');
+  serverSync.token = account.token;
+  serverSync.cursor = 0;
+  // Cases tracked under an earlier account are no longer tracked.
+  clearTracking();
+  await persist();
+}
+
+async function startAutoChecks(): Promise<void> {
+  const ok = await run(async () => {
+    await ensureAccount();
+    return true;
+  });
+  if (ok) await pull({ quiet: true });
+}
+
+/** Start tracking cases that were just added, when automatic checks are on. */
+export function trackNewCases(): void {
+  if (!autoChecks() || !store.data.cases.some(needsTracking)) return;
+  void (syncEnabled() ? pull({ quiet: true }) : startAutoChecks());
+}
+
+/** Turn on automatic checks with the given server address and track every open case. */
 export async function enableServerSync(rawUrl: string): Promise<boolean> {
   const url = normalizeServerUrl(rawUrl);
   if (!url) {
@@ -183,24 +253,85 @@ export async function enableServerSync(rawUrl: string): Promise<boolean> {
     return false;
   }
   serverAddress.error = '';
+  if (url !== serverSync.url) serverSync.token = '';
   serverSync.url = url;
+  serverSync.off = false;
   const ok = await run(async () => {
-    const health = await api<{ environment: 'sandbox' | 'production'; uscisConfigured: boolean }>(
-      '/v1/health',
-      {},
-      '',
-    );
-    serverSync.environment = health.environment;
-    const account = await api<{ token: string }>('/v1/accounts', { method: 'POST' }, '');
-    serverSync.token = account.token;
-    serverSync.cursor = 0;
-    // Cases tracked under an earlier account are no longer tracked.
-    clearTracking();
-    await persist();
+    await ensureAccount();
     return true;
   });
-  if (ok) showSnackbar('Server sync is on. Choose which cases to track on each case page.');
-  return Boolean(ok);
+  if (!ok) return false;
+  await pull({ quiet: true });
+  showSnackbar('Automatic checks are on. Waymark checks your cases with USCIS twice a day.');
+  return true;
+}
+
+export type Lookup = { ok: true; caseId: string } | { ok: false; message: string };
+
+/**
+ * Look up a receipt with the official API and add it as a case. Used by Add case, so the receipt
+ * number is all the user enters.
+ */
+export async function lookupReceipt(receipt: string): Promise<Lookup> {
+  if (!autoChecks()) return { ok: false, message: '' };
+  adding.add(receipt);
+  try {
+    return await addFromServer(receipt);
+  } finally {
+    adding.delete(receipt);
+  }
+}
+
+async function addFromServer(receipt: string): Promise<Lookup> {
+  const res = await run(async () => {
+    await ensureAccount();
+    return api<{ subscription: SubscriptionView; latest: { case: ParsedCase } | null }>(
+      '/v1/subscriptions',
+      { method: 'POST', body: JSON.stringify({ receipt }) },
+    );
+  });
+  if (!res) return { ok: false, message: serverSync.error };
+  serverSync.subscriptions[res.subscription.id] = res.subscription;
+  if (!res.latest) {
+    return {
+      ok: false,
+      message:
+        res.subscription.lastError ??
+        'USCIS did not answer yet. The server tries again at the next scheduled check.',
+    };
+  }
+  mergeFromServer([res.latest.case], { add: receipt });
+  const c = store.data.cases.find((x) => x.receipt === receipt);
+  if (!c) return { ok: false, message: 'The USCIS answer could not be read.' };
+  link(c.id, res.subscription.id);
+  return { ok: true, caseId: c.id };
+}
+
+function link(caseId: string, subscriptionId: string): void {
+  mutate((d) => {
+    const target = d.cases.find((x) => x.id === caseId);
+    if (target) target.serverTracking = { subscriptionId, since: nowInstant() };
+  });
+}
+
+/**
+ * Track every open case that is not tracked yet. Stops quietly at the first error (for example the
+ * per-device limit) and tries again at the next pull.
+ */
+async function trackMissing(): Promise<void> {
+  for (const c of store.data.cases.filter(needsTracking)) {
+    try {
+      const res = await api<{
+        subscription: SubscriptionView;
+        latest: { case: ParsedCase } | null;
+      }>('/v1/subscriptions', { method: 'POST', body: JSON.stringify({ receipt: c.receipt }) });
+      serverSync.subscriptions[res.subscription.id] = res.subscription;
+      link(c.id, res.subscription.id);
+      if (res.latest) mergeFromServer([res.latest.case]);
+    } catch {
+      return;
+    }
+  }
 }
 
 /** Use the sync key from another device. */
@@ -222,6 +353,7 @@ export async function useSyncKey(rawUrl: string, key: string): Promise<boolean> 
     );
     serverSync.token = key.trim();
     serverSync.cursor = 0;
+    serverSync.off = false;
     remember(subscriptions);
     linkTracking(subscriptions);
     await persist();
@@ -235,7 +367,10 @@ export async function useSyncKey(rawUrl: string, key: string): Promise<boolean> 
  * Delete the server account and everything it tracks, and stop syncing. Returns false, and keeps
  * the sync key so the user can try again, when the server did not confirm the deletion.
  */
-export async function disableServerSync({ quiet = false } = {}): Promise<boolean> {
+export async function disableServerSync({
+  quiet = false,
+  turnOff = true,
+}: { quiet?: boolean; turnOff?: boolean } = {}): Promise<boolean> {
   if (serverSync.token) {
     const deleted = await run(async () => {
       try {
@@ -248,7 +383,8 @@ export async function disableServerSync({ quiet = false } = {}): Promise<boolean
     });
     if (!deleted) {
       serverSync.error = `The server did not delete your data. ${serverSync.error} Try again when you are online.`;
-      if (!quiet) showSnackbar('Server sync is still on. The server did not delete your data.');
+      if (!quiet)
+        showSnackbar('Automatic checks are still on. The server did not delete your data.');
       return false;
     }
   }
@@ -256,10 +392,11 @@ export async function disableServerSync({ quiet = false } = {}): Promise<boolean
   serverSync.cursor = 0;
   serverSync.subscriptions = {};
   serverSync.environment = '';
+  if (turnOff) serverSync.off = true;
   clearTracking();
   await persist();
   if (!quiet)
-    showSnackbar('Server sync is off. The server deleted your receipt numbers and results.');
+    showSnackbar('Automatic checks are off. The server deleted your receipt numbers and results.');
   return true;
 }
 
@@ -289,52 +426,6 @@ function mergeLatest(latest: { case: ParsedCase } | null, quiet = true): void {
   if (summary && !quiet) showSnackbar(describeMerge(summary));
 }
 
-export async function trackCase(caseId: string): Promise<void> {
-  const c = store.data.cases.find((x) => x.id === caseId);
-  if (!c || !syncEnabled()) return;
-  await run(async () => {
-    const res = await api<{ subscription: SubscriptionView; latest: { case: ParsedCase } | null }>(
-      '/v1/subscriptions',
-      {
-        method: 'POST',
-        body: JSON.stringify({ receipt: c.receipt }),
-      },
-    );
-    serverSync.subscriptions[res.subscription.id] = res.subscription;
-    mutate((d) => {
-      const target = d.cases.find((x) => x.id === caseId);
-      if (target)
-        target.serverTracking = { subscriptionId: res.subscription.id, since: nowInstant() };
-    });
-    mergeLatest(res.latest);
-    showSnackbar(
-      res.subscription.lastError
-        ? `Tracking ${c.receipt}, but USCIS returned an error: ${res.subscription.lastError}`
-        : `Tracking ${c.receipt} through the official API.`,
-    );
-  });
-}
-
-export async function untrackCase(caseId: string): Promise<void> {
-  const c = store.data.cases.find((x) => x.id === caseId);
-  const id = c?.serverTracking?.subscriptionId;
-  if (!c || !id) return;
-  await run(async () => {
-    await api(`/v1/subscriptions/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(
-      (e: unknown) => {
-        // Already gone on the server is fine.
-        if (!(e instanceof SyncError && /not tracked/.test(e.message))) throw e;
-      },
-    );
-    delete serverSync.subscriptions[id];
-    mutate((d) => {
-      const target = d.cases.find((x) => x.id === caseId);
-      if (target) delete target.serverTracking;
-    });
-    showSnackbar(`Stopped tracking ${c.receipt}. The server deleted it.`);
-  });
-}
-
 export async function refreshCase(caseId: string): Promise<void> {
   const id = store.data.cases.find((x) => x.id === caseId)?.serverTracking?.subscriptionId;
   if (!id) return;
@@ -355,12 +446,11 @@ export async function refreshCase(caseId: string): Promise<void> {
   });
 }
 
-/** Fetch results that changed since the last pull and merge them. */
 /** Stop tracking receipts whose case was deleted on this device, so they stop using quota. */
 async function dropOrphans(): Promise<void> {
   const local = new Set(store.data.cases.map((c) => c.receipt));
   for (const sub of Object.values(serverSync.subscriptions)) {
-    if (local.has(sub.receipt)) continue;
+    if (local.has(sub.receipt) || adding.has(sub.receipt)) continue;
     try {
       await api(`/v1/subscriptions/${encodeURIComponent(sub.id)}`, { method: 'DELETE' });
       delete serverSync.subscriptions[sub.id];
@@ -370,9 +460,15 @@ async function dropOrphans(): Promise<void> {
   }
 }
 
+/** Track new cases, then fetch results that changed since the last pull and merge them. */
 export async function pull({ quiet }: { quiet: boolean }): Promise<void> {
-  if (!syncEnabled() || serverSync.busy) return;
+  if (!syncEnabled()) return;
+  if (serverSync.busy) {
+    pullAgain = true;
+    return;
+  }
   await run(async () => {
+    if (!serverSync.off) await trackMissing();
     const res = await api<{
       cursor: number;
       items: { subscriptionId: string; case: ParsedCase }[];

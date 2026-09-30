@@ -1,9 +1,8 @@
 <script lang="ts">
   import { isValidReceipt, normalizeReceipt } from '@waymark/core';
   import { untrack } from 'svelte';
-  import { importUscis } from '../actions';
   import { store } from '../stores/data.svelte';
-  import { caseJsonUrl } from '../sync.svelte';
+  import { caseJsonUrl, importFrom } from '../sync.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
   import Sheet from '../ui/Sheet.svelte';
@@ -13,7 +12,7 @@
   interface Props {
     caseId?: string;
     message?: string;
-    /** Text shared to the app, shown for review before importing. */
+    /** Text shared to the app that could not be imported, shown to check and try again. */
     text?: string;
     onclose: () => void;
   }
@@ -42,6 +41,7 @@
       }
       text = clip;
       problems = [];
+      run();
     } catch {
       problems = [
         'The browser did not allow reading the clipboard. Long-press the Case JSON field and choose Paste.',
@@ -63,7 +63,7 @@
   }
 
   function run() {
-    const result = importUscis(text);
+    const result = importFrom(text);
     if (!result.ok) {
       problems = result.parse.problems.length > 0 ? result.parse.problems : [result.message];
       warning = '';

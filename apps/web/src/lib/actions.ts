@@ -174,10 +174,15 @@ export function importUscis(text: string): ImportOutcome {
 
 /**
  * Merge cases from the sync server. Only receipts that exist locally are merged, so deleting a
- * case here is never undone by the server. Returns the summary, or null when nothing matched.
+ * case here is never undone by the server; `add` names the one receipt the user is adding now.
+ * Returns the summary, or null when nothing matched.
  */
-export function mergeFromServer(parsed: unknown[]): MergeSummary | null {
+export function mergeFromServer(
+  parsed: unknown[],
+  { add }: { add?: string } = {},
+): MergeSummary | null {
   const local = new Set(store.data.cases.map((c) => c.receipt));
+  if (add) local.add(add);
   // Server responses are untrusted input, like imports.
   const known = parsed
     .map(sanitizeParsedCase)

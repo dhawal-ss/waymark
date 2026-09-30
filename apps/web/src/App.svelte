@@ -44,8 +44,8 @@
       startClock(() => tz());
       startInstallWatch();
       void initBackup();
-      void handleLaunch();
-      return initServerSync();
+      // Settings first, so a shared case uses the saved server account.
+      return initServerSync().then(handleLaunch);
     });
   });
 

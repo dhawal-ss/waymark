@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoAxeViolations, loadExample, open, PAGES, setPrefs } from './helpers';
+import { expectNoAxeViolations, loadExample, open, openImport, PAGES, setPrefs } from './helpers';
 
 const VARIANTS = [
   { name: 'light', prefs: { theme: 'light' } },
@@ -80,9 +80,16 @@ test('axe: add case and import sheets', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '/cases');
   await page.getByRole('button', { name: 'Add case' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Add case' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await expectNoAxeViolations(page);
+  await dialog.getByRole('textbox', { name: 'Receipt number' }).fill('IOE0999000111');
+  await dialog.getByRole('button', { name: 'Add case' }).click();
+  await expect(dialog.getByRole('button', { name: 'Open case page' })).toBeVisible();
+  await expectNoAxeViolations(page);
+  await dialog.getByRole('button', { name: 'Enter details yourself' }).click();
   await expectNoAxeViolations(page);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Import USCIS JSON' }).click();
+  await openImport(page);
   await expectNoAxeViolations(page);
 });
