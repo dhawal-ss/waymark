@@ -14,6 +14,13 @@ const ENTITIES: Record<string, string> = {
   lsquo: "'",
   rdquo: '"',
   ldquo: '"',
+  hellip: '\u2026',
+  bull: '\u2022',
+  middot: '\u00b7',
+  sect: '\u00a7',
+  copy: '\u00a9',
+  reg: '\u00ae',
+  trade: '\u2122',
 };
 
 export function decodeEntities(text: string): string {

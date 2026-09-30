@@ -2,7 +2,7 @@ import { createApp, type AppDeps } from './app';
 import { pollDue } from './checker';
 import { readConfig, type Env } from './config';
 import { createSealer, type Sealer } from './crypto';
-import { refreshProcessingTimes, refreshVisaBulletins } from './publicJobs';
+import { refreshNews, refreshProcessingTimes, refreshVisaBulletins } from './publicJobs';
 import { PublicStore } from './publicStore';
 import { Store } from './store';
 import { UscisClient } from './uscis';
@@ -49,9 +49,11 @@ export default {
     ctx.waitUntil(
       depsFor(env).then(async (deps) => {
         if (event.cron === PUBLIC_DATA_CRON) {
-          if (!deps.config.publicDataEnabled) return;
-          console.log('processing-times', JSON.stringify(await refreshProcessingTimes(deps)));
-          console.log('visa-bulletin', JSON.stringify(await refreshVisaBulletins(deps)));
+          if (deps.config.publicDataEnabled) {
+            console.log('processing-times', JSON.stringify(await refreshProcessingTimes(deps)));
+            console.log('visa-bulletin', JSON.stringify(await refreshVisaBulletins(deps)));
+          }
+          if (deps.config.newsEnabled) console.log('news', JSON.stringify(await refreshNews(deps)));
           return;
         }
         const summary = await pollDue(deps);

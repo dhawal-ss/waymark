@@ -19,7 +19,7 @@ simple = { limit = 5, period = 60 }
 
 [triggers]
 # Every 30 minutes: receipts that are due, within the daily quota.
-# Daily at 13:17 UTC: public data (processing times, Visa Bulletin).
+# Daily at 13:17 UTC: public data (processing times, Visa Bulletin) and official news.
 crons = ["*/30 * * * *", "17 13 * * *"]
 
 [vars]
@@ -33,3 +33,10 @@ MAX_ACCOUNTS = "500"
 # Public data from official sources. Set to "false" to turn the daily job off.
 PUBLIC_DATA_ENABLED = "true"
 PROCESSING_TIMES_BASE_URL = "https://egov.uscis.gov/processing-times"
+# Official news for the Updates feed: Federal Register documents from USCIS, plus the USCIS RSS or
+# Atom feeds you list here (comma separated, https on uscis.gov only, others are ignored). No feeds
+# are listed by default; see docs/DEPLOY.md. News follows PUBLIC_DATA_ENABLED unless you set
+# NEWS_ENABLED = "false" (off) or "true" (on).
+# NEWS_ENABLED = "true"
+FEDERAL_REGISTER_BASE_URL = "https://www.federalregister.gov"
+USCIS_FEED_URLS = ""

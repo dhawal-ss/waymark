@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test fixture written from the RSS 2.0 format, not fetched from uscis.gov. -->
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Example news feed</title>
+    <link>https://www.uscis.gov/newsroom</link>
+    <description>Channel description that is not an item.</description>
+    <atom:link href="https://www.uscis.gov/news/rss.xml" rel="self" type="application/rss+xml"/>
+    <lastBuildDate>Tue, 03 Mar 2026 15:00:00 GMT</lastBuildDate>
+    <item>
+      <title><![CDATA[Beware of scams that use the agency's name & logo]]></title>
+      <link>https://www.uscis.gov/newsroom/alerts/beware-of-scams</link>
+      <guid isPermaLink="false">1001 at https://www.uscis.gov</guid>
+      <pubDate>Tue, 03 Mar 2026 09:30:00 -0500</pubDate>
+      <category>Alert</category>
+      <dc:creator>Example office</dc:creator>
+      <description><![CDATA[<p>Callers may <strong>impersonate</strong> officials and ask for payment.&nbsp;Read the <a href="https://www.uscis.gov/scams">scam guidance</a>.</p><p>Second paragraph.</p>]]></description>
+    </item>
+    <item>
+      <title>Form I-765 &amp; Form I-131 get new editions</title>
+      <link>
+        https://www.uscis.gov/newsroom/news-releases/new-form-editions
+      </link>
+      <guid>https://www.uscis.gov/newsroom/news-releases/new-form-editions</guid>
+      <pubDate>Mon, 02 Mar 2026 16:45:00 EST</pubDate>
+      <category>News release</category>
+      <description>&lt;p&gt;USCIS released a new edition of Form I-765 and Form I-131. Older editions are accepted until the date shown.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Update on the U.S. Department of State Visa Bulletin</title>
+      <link>http://www.uscis.gov/newsroom/alerts/visa-bulletin-update</link>
+      <guid isPermaLink="false">1003 at https://www.uscis.gov</guid>
+      <pubDate>Fri, 27 Feb 2026 10:00:00 GMT</pubDate>
+      <description><![CDATA[Don&#8217;t miss this: the chart for filing changes&hellip; See the bulletin for details.]]></description>
+    </item>
+    <item>
+      <title>Item without a date</title>
+      <link>https://www.uscis.gov/newsroom/no-date</link>
+      <guid isPermaLink="false">1004 at https://www.uscis.gov</guid>
+      <description>This item must be skipped.</description>
+    </item>
+    <item>
+      <title>Item from another site</title>
+      <link>https://news.example.com/story</link>
+      <guid isPermaLink="false">1005 at https://news.example.com</guid>
+      <pubDate>Thu, 26 Feb 2026 10:00:00 GMT</pubDate>
+      <description>This item must be skipped.</description>
+    </item>
+    <item>
+      <title>Item with no description</title>
+      <link>https://www.uscis.gov/newsroom/no-description</link>
+      <guid isPermaLink="false">1006 at https://www.uscis.gov</guid>
+      <pubDate>Wed, 25 Feb 2026 10:00:00 GMT</pubDate>
+      <description></description>
+    </item>
+  </channel>
+</rss>

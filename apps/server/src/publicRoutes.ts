@@ -1,8 +1,20 @@
 // Public data endpoints (no account needed) and the admin API for maintainers.
-import { normalizeStatForm, parseQuarter, type FormStat } from '@waymark/core';
+import {
+  isFormNumber,
+  isLocalDate,
+  NEWS_CATEGORIES,
+  normalizeStatForm,
+  parseQuarter,
+  type FormStat,
+} from '@waymark/core';
 import type { Context, Hono, Next } from 'hono';
 import { sha256Hex } from './crypto';
-import { refreshProcessingTimes, refreshVisaBulletins, type PublicDeps } from './publicJobs';
+import {
+  refreshNews,
+  refreshProcessingTimes,
+  refreshVisaBulletins,
+  type PublicDeps,
+} from './publicJobs';
 
 type Resolve = () => Promise<PublicDeps>;
 
@@ -138,6 +150,28 @@ export function mountPublicRoutes(app: Hono<AppEnv>, resolve: Resolve): void {
     });
   });
 
+  app.get('/v1/public/news', async (c) => {
+    const d = await resolve();
+    const { limit: rawLimit = '', before = '', category = '', form = '' } = c.req.query();
+    if (rawLimit && !/^-?\d{1,9}$/.test(rawLimit))
+      return err(c, 400, 'invalid', 'Pass limit as a whole number from 1 to 100.');
+    if (before && !isLocalDate(before))
+      return err(c, 400, 'invalid', 'Pass before as a date like 2026-03-02.');
+    if (category && !(NEWS_CATEGORIES as readonly string[]).includes(category))
+      return err(c, 400, 'invalid', `Pass category as one of: ${NEWS_CATEGORIES.join(', ')}.`);
+    const formNumber = form.toUpperCase();
+    if (form && !isFormNumber(formNumber))
+      return err(c, 400, 'invalid', 'Pass form as a form number, for example I-485.');
+    const items = await d.publicStore.listNews({
+      limit: rawLimit ? Math.min(100, Math.max(1, Number(rawLimit))) : 40,
+      before: before || undefined,
+      category: category || undefined,
+      form: form ? formNumber : undefined,
+    });
+    c.header('Cache-Control', 'public, max-age=900');
+    return c.json({ items });
+  });
+
   // Admin
 
   app.post('/v1/admin/pt-targets', admin, async (c) => {
@@ -219,6 +253,7 @@ export function mountPublicRoutes(app: Hono<AppEnv>, resolve: Resolve): void {
     const job = c.req.query('job');
     if (job === 'processing-times') return c.json(await refreshProcessingTimes(d));
     if (job === 'visa-bulletin') return c.json(await refreshVisaBulletins(d));
-    return err(c, 400, 'invalid', 'Pass job=processing-times or job=visa-bulletin.');
+    if (job === 'news') return c.json(await refreshNews(d));
+    return err(c, 400, 'invalid', 'Pass job=processing-times, job=visa-bulletin, or job=news.');
   });
 }

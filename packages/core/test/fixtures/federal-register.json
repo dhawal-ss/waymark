@@ -1,0 +1,63 @@
+{
+  "count": 7,
+  "description": "Documents from U.S. Citizenship and Immigration Services (test fixture written from the documented response shape, not fetched from federalregister.gov)",
+  "total_pages": 1,
+  "next_page_url": null,
+  "results": [
+    {
+      "document_number": "2026-00311",
+      "title": "Adjustment of the Fee Schedule for Immigration Benefit Requests",
+      "abstract": "The Department of Homeland Security proposes to adjust the fee schedule for certain immigration benefit requests. The proposal would change how fees are set for several forms. Comments are due by the date shown in the notice.",
+      "html_url": "https://www.federalregister.gov/documents/2026/03/02/2026-00311/adjustment-of-the-fee-schedule-for-immigration-benefit-requests",
+      "publication_date": "2026-03-02",
+      "type": "Proposed Rule"
+    },
+    {
+      "document_number": "2026-00280",
+      "title": "Agency Information Collection Activities; Revision of a Currently Approved Collection: Application to Register Permanent Residence or Adjust Status (Form I-485)",
+      "abstract": "The Department of Homeland Security invites the general public to comment on a revision of a currently approved information collection for Form I-485 and its supplements. Supplement A and Form I-693 are also affected.",
+      "html_url": "https://www.federalregister.gov/documents/2026/02/27/2026-00280/agency-information-collection-activities-form-i-485",
+      "publication_date": "2026-02-27",
+      "type": "Notice"
+    },
+    {
+      "document_number": "2026-00195",
+      "title": "Extension of the Designation of a Country for Temporary Protected Status",
+      "abstract": null,
+      "html_url": "https://www.federalregister.gov/documents/2026/02/20/2026-00195/extension-of-the-designation-for-temporary-protected-status",
+      "publication_date": "2026-02-20",
+      "type": "Notice"
+    },
+    {
+      "document_number": "2026-00144",
+      "title": "Modernizing Requirements for Students in Practical Training",
+      "abstract": "This final rule amends regulations for F-1 students in optional practical training. It takes effect 30 days after publication.",
+      "html_url": "https://www.federalregister.gov/documents/2026/02/12/2026-00144/modernizing-requirements-for-students-in-practical-training",
+      "publication_date": "2026-02-12",
+      "type": "Rule"
+    },
+    {
+      "document_number": "2026-00090",
+      "title": "Technical Amendments to Procedures for Filing",
+      "abstract": "This rule makes technical corrections to filing procedures. It does not change eligibility.",
+      "html_url": "https://www.federalregister.gov/documents/2026/02/03/2026-00090/technical-amendments-to-procedures-for-filing",
+      "publication_date": "2026-02-03",
+      "type": "Rule"
+    },
+    {
+      "document_number": "2026-00045",
+      "title": "Entry with no publication date",
+      "abstract": "This entry is missing its date and must be skipped.",
+      "html_url": "https://www.federalregister.gov/documents/2026/01/20/2026-00045/no-date",
+      "type": "Notice"
+    },
+    {
+      "document_number": "2026-00012",
+      "title": "Entry with an unofficial link",
+      "abstract": "The link points to another site and must be skipped.",
+      "html_url": "https://example.com/documents/2026-00012",
+      "publication_date": "2026-01-15",
+      "type": "Notice"
+    }
+  ]
+}

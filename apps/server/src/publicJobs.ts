@@ -3,9 +3,13 @@
 import {
   addMonths,
   bulletinUrl,
+  federalRegisterUrl,
+  parseFederalRegister,
+  parseFeed,
   parseProcessingTimes,
   parseVisaBulletin,
   today,
+  type NewsItem,
 } from '@waymark/core';
 import type { Config } from './config';
 import type { PublicStore } from './publicStore';
@@ -137,6 +141,120 @@ export async function refreshVisaBulletins(
     'visa-bulletin',
     deps.now().toISOString(),
     summary.stored === 0 ? lastError : null,
+  );
+  return summary;
+}
+
+/** Newest news items kept in the database. */
+export const NEWS_KEEP = 500;
+/** A feed larger than this is read only as far as this many characters. */
+const NEWS_MAX_CHARS = 3_000_000;
+const FEED_ACCEPT =
+  'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8';
+
+export interface NewsSummary {
+  sources: number;
+  failed: number;
+  /** Distinct items read from all sources. */
+  items: number;
+  /** Items that were not in the database before this run. */
+  added: number;
+  /** Source entries skipped for a missing title, link, or date. */
+  skipped: number;
+  /** One plain-language line per failed source. Addresses are shown without their query string. */
+  errors: string[];
+}
+
+interface NewsRequest {
+  url: string;
+  label: string;
+  json: boolean;
+}
+
+/** Fetch and parse one news source. Returns items, or a message that says what went wrong. */
+async function readNewsSource(
+  deps: PublicDeps,
+  request: NewsRequest,
+): Promise<{ items: NewsItem[]; problems: string[] } | { error: string }> {
+  const { url, label } = request;
+  let res: Response;
+  try {
+    res = await deps.fetch(url, {
+      headers: {
+        Accept: request.json ? 'application/json' : FEED_ACCEPT,
+        'User-Agent': USER_AGENT,
+      },
+    });
+  } catch {
+    return { error: `Could not reach ${label}.` };
+  }
+  if (!res.ok) return { error: `${label} returned HTTP ${res.status}.` };
+  let parsed: { items: NewsItem[]; problems: string[] };
+  try {
+    parsed = request.json
+      ? parseFederalRegister(await res.json())
+      : parseFeed((await res.text()).slice(0, NEWS_MAX_CHARS));
+  } catch {
+    return { error: `${label} returned data that could not be read.` };
+  }
+  if (parsed.items.length === 0) {
+    return { error: `${label} had no usable news items. ${parsed.problems[0] ?? ''}`.trim() };
+  }
+  return parsed;
+}
+
+/**
+ * Collect official news: Federal Register documents from USCIS, then each configured USCIS feed,
+ * one request per gap. A failing source is reported and does not stop the others; the run is
+ * recorded as failed only when every source failed. Items are stored by id, and only the newest
+ * NEWS_KEEP stay.
+ */
+export async function refreshNews(deps: PublicDeps): Promise<NewsSummary> {
+  const { config } = deps;
+  const requests: NewsRequest[] = [
+    { url: federalRegisterUrl(config.federalRegisterBaseUrl), json: true },
+    ...config.uscisFeedUrls.map((url) => ({ url, json: false })),
+  ].map((r) => {
+    // The query string is left out of messages: it can carry parameters that are not public.
+    const u = new URL(r.url);
+    return { ...r, label: `${u.host}${u.pathname === '/' ? '' : u.pathname}` };
+  });
+  const summary: NewsSummary = {
+    sources: requests.length,
+    failed: 0,
+    items: 0,
+    added: 0,
+    skipped: 0,
+    errors: [],
+  };
+  const found = new Map<string, NewsItem>();
+  const links = new Set<string>();
+  for (const [i, request] of requests.entries()) {
+    if (i > 0) await deps.sleep(config.publicGapMs);
+    const result = await readNewsSource(deps, request);
+    if ('error' in result) {
+      summary.failed++;
+      summary.errors.push(result.error);
+      continue;
+    }
+    summary.skipped += result.problems.length;
+    for (const item of result.items) {
+      // Two feeds can list the same page under different ids; keep the first.
+      if (found.has(item.id) || links.has(item.url)) continue;
+      found.set(item.id, item);
+      links.add(item.url);
+    }
+  }
+  summary.items = found.size;
+  const now = deps.now().toISOString();
+  if (found.size > 0) summary.added = await deps.publicStore.upsertNews([...found.values()], now);
+  await deps.publicStore.pruneNews(NEWS_KEEP);
+  await deps.publicStore.recordRun(
+    'news',
+    now,
+    summary.failed === summary.sources
+      ? `Every news source failed. ${summary.errors[0] ?? ''}`.trim()
+      : null,
   );
   return summary;
 }
