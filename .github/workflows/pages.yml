@@ -60,6 +60,14 @@ jobs:
           USCIS_CLIENT_SECRET: ${{ secrets.USCIS_CLIENT_SECRET }}
           USCIS_BASE_URL: ${{ vars.USCIS_BASE_URL }}
           APP_ORIGINS: ${{ vars.APP_ORIGINS }}
+      # Health, CORS for the app, and one sandbox lookup that proves the USCIS keys work.
+      - if: steps.deploy.outputs.url != ''
+        run: |
+          origin="${APP_ORIGINS%%,*}"
+          [ -n "$origin" ] || origin="https://${GITHUB_REPOSITORY_OWNER,,}.github.io"
+          node scripts/smoke-server.mjs "${{ steps.deploy.outputs.url }}" "$origin"
+        env:
+          APP_ORIGINS: ${{ vars.APP_ORIGINS }}
 
   build:
     needs: server
