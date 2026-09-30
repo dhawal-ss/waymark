@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { applyTheme } from './lib/theme';
+  import { initServerSync } from './lib/serverSync.svelte';
   import { initData, store } from './lib/stores/data.svelte';
   import { router, startRouter } from './lib/stores/router.svelte';
   import AppNav from './lib/ui/AppNav.svelte';
@@ -34,7 +35,7 @@
 
   $effect(() => startRouter());
   $effect(() => {
-    void initData();
+    void initData().then(() => initServerSync());
   });
 
   $effect(() => {

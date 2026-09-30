@@ -14,7 +14,9 @@ import {
   type Deadline,
   type FormType,
   type LocalDate,
+  type MergeSummary,
   type ParseResult,
+  type ParsedCase,
   type StatusKey,
   STATUSES,
 } from '@waymark/core';
@@ -136,6 +138,27 @@ export function importUscis(text: string): ImportOutcome {
     { undo: () => message },
   );
   return { ok: true, parse, message };
+}
+
+/**
+ * Merge cases from the sync server. Only receipts that exist locally are merged, so deleting a
+ * case here is never undone by the server. Returns the summary, or null when nothing matched.
+ */
+export function mergeFromServer(parsed: ParsedCase[]): MergeSummary | null {
+  const local = new Set(store.data.cases.map((c) => c.receipt));
+  const known = parsed.filter((p) => local.has(p.receipt));
+  if (known.length === 0) return null;
+  let summary: MergeSummary | null = null;
+  mutate((d) => {
+    const result = mergeImport(d.cases, known, {
+      now: nowInstant(),
+      makeId: newId,
+      timeZone: tz(),
+    });
+    d.cases = result.cases;
+    summary = result.summary;
+  });
+  return summary;
 }
 
 export function addDeadline(input: { title: string; date: LocalDate; caseId?: string }): void {

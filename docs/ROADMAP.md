@@ -45,12 +45,31 @@ Known limits:
 - End-to-end tests run in Chromium only.
 - Delete everything keeps display settings (theme, color, contrast, masking, time zone).
 
-## Phase 3: official sync
+## Phase 3: official sync (done, in review)
 
-Server on Cloudflare Workers (Hono, D1, Cron Triggers) using the USCIS Case Status API with OAuth
-2.0 client credentials. Sandbox first, production after USCIS approval. Scheduled polling within
-published rate limits, response hashing, changes only, same core merge logic. Optional account;
-local-only stays the default. Receipt numbers encrypted at rest.
+- [x] Core adapter for Case Status API responses: status text to status, "CS:" events with text,
+      merged through the same `mergeImport` as manual imports; data schema 2 with migration
+- [x] Server on Cloudflare Workers with Hono, D1, and a Cron Trigger every 30 minutes
+- [x] OAuth 2.0 client credentials with token caching and renewal; sandbox base URL by default
+- [x] Polling within 5 requests per second and the daily quota, with a reserve, backoff for
+      failing receipts, and a batch cap per run
+- [x] SHA-256 of a canonical result; snapshots stored only on change (last 50 per receipt)
+- [x] Anonymous accounts (random sync key, only its hash stored), receipts per account cap,
+      account cap, inactive account cleanup, garbage collection of untracked receipts
+- [x] Receipt numbers and results encrypted at rest (AES-GCM), HMAC lookup, secrets in
+      environment variables only
+- [x] Web: server sync off by default, per-case tracking, updates pulled every 30 minutes while
+      open, sync key copy and reuse, turn off deletes server data, sync key never exported
+- [x] Sandbox check script, deploy guide, server tests on the real SQL, e2e with a fake server
+
+Not done, needs you:
+
+- Deploy: create the D1 database, set secrets, and deploy (docs/DEPLOY.md). This container cannot
+  reach Cloudflare or api-int.uscis.gov.
+- Run `sandbox:check` once with your credentials to confirm the response shape against the
+  adapter. The adapter follows the documented fields (`case_status`, `receiptNumber`, `formType`,
+  `submittedDate`, `modifiedDate`, `current_case_status_text_en`, `hist_case_status`).
+- Request production access from USCIS when ready.
 
 ## Phase 4: public data
 

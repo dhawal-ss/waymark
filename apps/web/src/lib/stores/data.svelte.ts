@@ -9,7 +9,7 @@ import {
   type AppData,
 } from '@waymark/core';
 import type { IDBPDatabase } from 'idb';
-import { loadAll, openWaymarkDb, saveAll, type WaymarkDB } from '../db';
+import { loadAll, openWaymarkDb, readSetting, saveAll, writeSetting, type WaymarkDB } from '../db';
 import { readJson, writeJson } from '../storage';
 import { showSnackbar } from './snackbar.svelte';
 
@@ -114,6 +114,27 @@ function scheduleSave(): void {
         'Saving failed. Free up space on this device or export your data, then reload.';
     }
   });
+}
+
+/** Read a setting stored outside the exported data. */
+export async function loadSetting<T>(key: string): Promise<T | undefined> {
+  if (!db) return undefined;
+  try {
+    return await readSetting<T>(db, key);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Store a setting outside the exported data. `undefined` removes it. */
+export async function saveSetting(key: string, value: unknown): Promise<void> {
+  if (!db) return;
+  try {
+    await writeSetting(db, key, value);
+  } catch {
+    store.storageError =
+      'Saving failed. Free up space on this device or export your data, then reload.';
+  }
 }
 
 /** Resolves when pending writes have finished. */

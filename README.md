@@ -38,17 +38,26 @@ USCIS does not let other sites read a signed-in account, so sync is manual:
 3. Return to Waymark and choose Import in the prompt, or use Paste JSON or a saved file.
 
 Waymark keeps only events, notices, dates, form type, and channel. Event code meanings are
-community documented and shown as unofficial. An official API sync is planned (Phase 3).
+community documented and shown as unofficial.
+
+### Optional server sync
+
+A Waymark sync server can check the cases you choose with the official USCIS Case Status API
+about twice a day. It is off by default. When on, only the receipt numbers of tracked cases leave
+the device; the server stores them encrypted and keeps results only when they change. See
+[docs/DEPLOY.md](docs/DEPLOY.md) to run one. Until USCIS approves production access, the server
+uses the sandbox, which has test data only.
 
 ## Structure
 
-| Path             | Purpose                                                            |
-| ---------------- | ------------------------------------------------------------------ |
-| `packages/core`  | Domain logic with no DOM: parsing, merge, status, projections, I/O |
-| `packages/theme` | Material 3 color roles from one seed in OKLCH, contrast, springs   |
-| `apps/web`       | Svelte 5 PWA: design system, app shell, pages                      |
-| `e2e`            | Playwright end-to-end and accessibility tests                      |
-| `scripts`        | Setup, em dash lint, bundle budget, icon generation                |
+| Path             | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `packages/core`  | Domain logic with no DOM: parsing, merge, status, projections, I/O  |
+| `packages/theme` | Material 3 color roles from one seed in OKLCH, contrast, springs    |
+| `apps/web`       | Svelte 5 PWA: design system, app shell, pages                       |
+| `apps/server`    | Optional sync server: Cloudflare Workers, D1, USCIS Case Status API |
+| `e2e`            | Playwright end-to-end and accessibility tests                       |
+| `scripts`        | Setup, em dash lint, bundle budget, icon generation                 |
 
 ## Credits
 

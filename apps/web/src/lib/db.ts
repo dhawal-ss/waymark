@@ -76,6 +76,23 @@ export async function loadAll(
   return { schema: typeof schema === 'number' ? schema : null, raw };
 }
 
+/** Settings kept outside AppData (never exported), such as the sync server key. */
+export async function readSetting<T>(
+  db: IDBPDatabase<WaymarkDB>,
+  key: string,
+): Promise<T | undefined> {
+  return (await db.get('kv', `setting:${key}`)) as T | undefined;
+}
+
+export async function writeSetting(
+  db: IDBPDatabase<WaymarkDB>,
+  key: string,
+  value: unknown,
+): Promise<void> {
+  if (value === undefined) await db.delete('kv', `setting:${key}`);
+  else await db.put('kv', value, `setting:${key}`);
+}
+
 /** Replace everything stored with `data` in one transaction. */
 export async function saveAll(
   db: IDBPDatabase<WaymarkDB>,

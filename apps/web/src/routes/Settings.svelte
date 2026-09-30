@@ -11,6 +11,8 @@
   import Icon from '../lib/ui/Icon.svelte';
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import SeedPicker from '../lib/ui/SeedPicker.svelte';
+  import ServerSyncSettings from '../lib/ui/ServerSyncSettings.svelte';
+  import { disableServerSync, syncEnabled } from '../lib/serverSync.svelte';
   import Switch from '../lib/ui/Switch.svelte';
 
   const prefs = $derived(store.data.prefs);
@@ -122,26 +124,30 @@
     <div>
       <dt class="t-label">Works</dt>
       <dd>
-        Manual sync. On a case, choose Sync to open your case JSON on my.uscis.gov, copy the page,
-        and import it. Waymark keeps only events, notices, and dates.
+        Manual sync: on a case, choose Sync to open your case JSON on my.uscis.gov, copy the page,
+        and import it. Server sync, when turned on below: a Waymark sync server checks the cases you
+        choose with the official USCIS Case Status API.
       </dd>
     </div>
     <div>
       <dt class="t-label">Does not work</dt>
       <dd>
-        Automatic sync. USCIS does not let other sites read your signed-in account, and Waymark
-        never asks for or stores your USCIS password.
+        Reading your signed-in USCIS account automatically. USCIS does not let other sites read it,
+        and Waymark never asks for or stores your USCIS password.
       </dd>
     </div>
     <div>
-      <dt class="t-label">Planned</dt>
+      <dt class="t-label">Limits</dt>
       <dd>
-        Optional sync through the official USCIS Case Status API. Keeping data only on this device
-        stays the default.
+        The official API gives status text and dates, not the detailed events or notices in the case
+        JSON. Until USCIS approves production access, the server can reach only the sandbox, which
+        has test data.
       </dd>
     </div>
   </dl>
 </section>
+
+<ServerSyncSettings />
 
 <section class="group" aria-labelledby="data-title">
   <h2 id="data-title" class="t-title">Data</h2>
@@ -168,13 +174,19 @@
     after.
   </p>
   <div class="actions">
-    <Button variant="outlined" icon="delete" class="danger" onclick={deleteEverything}
-      >Delete everything</Button
+    <Button
+      variant="outlined"
+      icon="delete"
+      class="danger"
+      onclick={() => {
+        deleteEverything();
+        if (syncEnabled()) void disableServerSync();
+      }}>Delete everything</Button
     >
   </div>
   <p class="muted t-small">
     Deletes all cases, deadlines, series, and tool data. Display settings are kept. You can undo
-    right after.
+    right after, except that server sync is turned off and its data deleted.
   </p>
 </section>
 

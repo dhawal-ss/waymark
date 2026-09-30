@@ -55,6 +55,23 @@ page is a lazy chunk.
 - Other tabs get a BroadcastChannel message after each save and reload from IndexedDB. When another
   tab needs to upgrade or delete the database, this tab closes its connection and asks for a reload.
 
+## Server sync (optional)
+
+- `apps/server` is a Hono app on Cloudflare Workers with D1. A Cron Trigger runs `pollDue` every
+  30 minutes: it picks receipts not checked within the poll interval (oldest first, failing ones
+  backed off), stays under the daily quota minus a 10% reserve, waits 220 ms between calls, and
+  stops on rate limiting or credential errors.
+- The USCIS client uses OAuth 2.0 client credentials and reuses the token until a minute before it
+  expires, renewing once on a 401.
+- Each response goes through `parseCaseStatusResponse` in core. The server hashes a canonical form
+  and stores an encrypted snapshot only when the hash changes.
+- Accounts are anonymous: the client holds a random sync key; the server stores its SHA-256.
+  Receipts are stored AES-GCM encrypted with a keyed HMAC for lookup, so the database alone does
+  not reveal receipt numbers.
+- The web app pulls `/v1/updates?after=<cursor>` and merges results for local cases with
+  `mergeImport`. Official events carry status text and use `CS:` codes, so they sit in the same
+  timeline as ELIS events from manual imports.
+
 ## USCIS import
 
 - `parseUscisJson` tries `JSON.parse`, then falls back to a brace scanner that finds top-level

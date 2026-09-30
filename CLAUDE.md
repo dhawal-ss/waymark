@@ -35,19 +35,27 @@ packages/core    Pure domain logic, no DOM, with fixtures in test/fixtures
   src/sanitize.ts  Validation of untrusted records
   src/transfer.ts  Export files, schema migrations, v0.2 import
   src/csv.ts, series.ts, projection.ts, receipt.ts, dates.ts, demo.ts
+  src/official.ts  Official Case Status API responses to ParsedCase ("CS:" events with status text)
 packages/theme   OKLCH palettes, Material color roles, contrast, spring curves
+apps/server      Optional sync server: Hono on Cloudflare Workers, D1, Cron (see docs/DEPLOY.md)
+  src/uscis.ts     OAuth client credentials and Case Status API client
+  src/checker.ts   Polling within quota, change hashing, snapshots
+  src/app.ts       HTTP API (anonymous accounts, subscriptions, updates)
+  src/crypto.ts    AES-GCM at rest, HMAC lookup, token hashing
+  migrations/      D1 schema; add a new numbered file for every change
 apps/web         Svelte 5 + Vite PWA
   src/lib/db.ts    IndexedDB schema versions and upgrades
   src/lib/stores   data (app data, persistence, undo), prefs, router, snackbar, ui (sheets)
   src/lib/actions.ts  Domain actions; every change goes through mutate()
   src/lib/sync.ts  Manual sync flow (open JSON tab, clipboard import, paste fallback)
+  src/lib/serverSync.svelte.ts  Optional server sync client (off by default)
   src/lib/sheets   Add or edit case, deadline, status, and import sheets
   src/lib/ui       Design system components (import each by path; no barrel file)
   src/routes       Pages; all but Cases and Settings are lazy-loaded
   src/styles       fonts.css, tokens.css (shape, type, tones), base.css
 e2e/             Playwright tests with axe, run at 360px and 1280px
 scripts/         setup.sh, check-emdash, check-bundle-size, icons, render-icons
-docs/            ROADMAP.md, ARCHITECTURE.md
+docs/            ROADMAP.md, ARCHITECTURE.md, DEPLOY.md
 ```
 
 ## Commands
@@ -85,5 +93,9 @@ In this container, Playwright is pinned to 1.56.1 to match the preinstalled Chro
 - Dates are local `YYYY-MM-DD` strings; do arithmetic with `toEpochDay` from `@waymark/core`.
   Convert USCIS instants with `localDateOf(instant, tz())` so the time zone setting applies.
 - Add icons by name to `scripts/icons.mjs` and run `node scripts/icons.mjs`.
+- Server secrets (USCIS client id and secret, receipt keys) live only in Cloudflare secrets or
+  `.dev.vars`. Never log receipt numbers or tokens. Server results reach the app as `ParsedCase`
+  and go through `mergeImport`, like manual imports.
+- The sync key is stored with `saveSetting` outside AppData so exports never contain it.
 
 Keep this file, `README.md`, and `docs/ROADMAP.md` current as the project changes.

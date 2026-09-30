@@ -36,6 +36,8 @@
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import Pill from '../lib/ui/Pill.svelte';
   import Receipt from '../lib/ui/Receipt.svelte';
+  import ServerTracking from '../lib/ui/ServerTracking.svelte';
+  import { syncEnabled } from '../lib/serverSync.svelte';
   import SplitButton from '../lib/ui/SplitButton.svelte';
   import StatusPill from '../lib/ui/StatusPill.svelte';
   import TextArea from '../lib/ui/TextArea.svelte';
@@ -200,6 +202,7 @@
       Sync opens your case JSON on my.uscis.gov in a new tab. Copy the page, come back, and choose
       Import. Event meanings are community documented, not official.
     </p>
+    {#if syncEnabled()}<ServerTracking {c} />{/if}
   </section>
 
   {#if stats}

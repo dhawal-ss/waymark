@@ -98,9 +98,6 @@ test('updates filters sources and records checks', async ({ page }) => {
 
 test('settings states what sync can and cannot do', async ({ page }) => {
   await open(page, '/settings');
-  await expect(
-    page.getByText('Automatic sync. USCIS does not let other sites read your signed-in account', {
-      exact: false,
-    }),
-  ).toBeVisible();
+  await expect(page.getByText(/Reading your signed-in USCIS account automatically/)).toBeVisible();
+  await expect(page.getByText(/the server can reach only the sandbox/)).toBeVisible();
 });
