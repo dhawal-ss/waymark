@@ -12,11 +12,18 @@ export function exampleData(
 ): Omit<AppData, 'prefs' | 'checklists' | 'sourceChecks' | 'fees'> {
   const filed1 = addDays(on, -212);
   const interviewEvent = addDays(on, -3);
+  // Notices are the receipt, biometrics, and interview. The events between them are background
+  // updates that USCIS does not announce with a notice.
   const events1 = [
     { code: 'IAF', at: at(filed1) },
     { code: 'FNA', at: at(addDays(filed1, 18)) },
     { code: 'FTA0', at: at(addDays(filed1, 46)) },
+    { code: 'FN', at: at(addDays(filed1, 71), 15) },
+    { code: 'FTA1', at: at(addDays(filed1, 97), 16) },
     { code: 'FS', at: at(addDays(filed1, 120)) },
+    { code: 'FT0', at: at(addDays(filed1, 138), 15) },
+    { code: 'FT', at: at(addDays(filed1, 160), 15) },
+    { code: 'QAA', at: at(addDays(filed1, 188)) },
     { code: 'FI', at: at(interviewEvent, 16) },
   ];
   const case1: Case = {
@@ -58,6 +65,9 @@ export function exampleData(
   const events2 = [
     { code: 'IAF', at: at(filed2) },
     { code: 'FTA0', at: at(addDays(filed2, 31)) },
+    { code: 'FT0', at: at(addDays(filed2, 64), 15) },
+    { code: 'FN', at: at(addDays(filed2, 92)) },
+    { code: 'FTA1', at: at(addDays(filed2, 121), 16) },
     { code: 'DA', at: at(addDays(filed2, 138)) },
     { code: 'LAA', at: at(addDays(filed2, 140)) },
   ];

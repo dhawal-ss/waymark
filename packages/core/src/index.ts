@@ -20,3 +20,5 @@ export * from './public/processingTimes.ts';
 export * from './public/formStats.ts';
 export * from './ics.ts';
 export * from './news.ts';
+export * from './explain.ts';
+export * from './journey.ts';
