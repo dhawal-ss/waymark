@@ -297,25 +297,31 @@ export class PublicStore {
       .run();
   }
 
-  /** Newest first. `before` is exclusive; `form` matches one of the item's form numbers. */
+  /**
+   * Newest first. `before` is exclusive. With `beforeId` the cursor is exact: items on the
+   * `before` date that sort after that id are kept, so pages never skip items that share a date.
+   * `form` matches one of the item's form numbers.
+   */
   async listNews(query: {
     limit: number;
     before?: string;
+    beforeId?: string;
     category?: string;
     form?: string;
   }): Promise<NewsItem[]> {
     const before = query.before ?? null;
+    const beforeId = query.beforeId ?? null;
     const category = query.category ?? null;
     const form = query.form ?? null;
     const res = await this.db
       .prepare(
         `SELECT id, kind, title, summary, url, published_on, category, forms FROM news_items
-         WHERE (? IS NULL OR published_on < ?)
+         WHERE (? IS NULL OR published_on < ? OR (published_on = ? AND id > ?))
            AND (? IS NULL OR category = ?)
            AND (? IS NULL OR EXISTS (SELECT 1 FROM json_each(news_items.forms) WHERE value = ?))
          ORDER BY published_on DESC, id ASC LIMIT ?`,
       )
-      .bind(before, before, category, category, form, form, query.limit)
+      .bind(before, before, before, beforeId, category, category, form, form, query.limit)
       .all<Record<string, unknown>>();
     return res.results.flatMap((row) => {
       let forms: unknown = [];

@@ -152,11 +152,19 @@ export function mountPublicRoutes(app: Hono<AppEnv>, resolve: Resolve): void {
 
   app.get('/v1/public/news', async (c) => {
     const d = await resolve();
-    const { limit: rawLimit = '', before = '', category = '', form = '' } = c.req.query();
+    const {
+      limit: rawLimit = '',
+      before = '',
+      beforeId = '',
+      category = '',
+      form = '',
+    } = c.req.query();
     if (rawLimit && !/^-?\d{1,9}$/.test(rawLimit))
       return err(c, 400, 'invalid', 'Pass limit as a whole number from 1 to 100.');
     if (before && !isLocalDate(before))
       return err(c, 400, 'invalid', 'Pass before as a date like 2026-03-02.');
+    if (beforeId && !/^(federal-register|uscis-feed):[\w.:/-]{1,160}$/.test(beforeId))
+      return err(c, 400, 'invalid', 'Pass beforeId as the id of the last item you received.');
     if (category && !(NEWS_CATEGORIES as readonly string[]).includes(category))
       return err(c, 400, 'invalid', `Pass category as one of: ${NEWS_CATEGORIES.join(', ')}.`);
     const formNumber = form.toUpperCase();
@@ -165,6 +173,7 @@ export function mountPublicRoutes(app: Hono<AppEnv>, resolve: Resolve): void {
     const items = await d.publicStore.listNews({
       limit: rawLimit ? Math.min(100, Math.max(1, Number(rawLimit))) : 40,
       before: before || undefined,
+      beforeId: before && beforeId ? beforeId : undefined,
       category: category || undefined,
       form: form ? formNumber : undefined,
     });

@@ -431,6 +431,31 @@ describe('news endpoint', () => {
     expect((await news(t, '?before=2099-01-01')).body.items).toHaveLength(11);
   });
 
+  it('pages exactly with before and beforeId, even when items share a date', async () => {
+    const t = await seeded();
+    const all = (await news(t)).body.items;
+    expect(new Set(all.map((i) => i.publishedOn)).size).toBeLessThan(all.length);
+    for (const size of [1, 2, 3, 4]) {
+      const seen: string[] = [];
+      let query = `?limit=${size}`;
+      for (let guard = 0; guard < 30; guard++) {
+        const page = (await news(t, query)).body.items;
+        if (page.length === 0) break;
+        seen.push(...page.map((i) => i.id));
+        const last = page.at(-1)!;
+        query = `?limit=${size}&before=${last.publishedOn}&beforeId=${encodeURIComponent(last.id)}`;
+      }
+      expect(seen).toEqual(all.map((i) => i.id));
+    }
+  });
+
+  it('rejects a beforeId that is not an item id and ignores it without before', async () => {
+    const t = await seeded();
+    expect((await news(t, '?before=2026-03-02&beforeId=nope')).res.status).toBe(400);
+    const all = (await news(t)).body.items;
+    expect((await news(t, `?beforeId=${encodeURIComponent(all[0]!.id)}`)).body.items).toEqual(all);
+  });
+
   it('filters by category', async () => {
     const t = await seeded();
     const forms = (await news(t, '?category=forms')).body.items;

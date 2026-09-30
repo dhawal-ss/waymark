@@ -243,8 +243,10 @@ returns `sources`, `failed`, `items`, `added`, `skipped`, and one line per faile
   and date, a category chosen by fixed keyword rules, and the form numbers found in the title or
   summary. The newest 500 items by publication date are kept.
 - `GET /v1/public/news` takes `limit` (1 to 100, default 40), `before` (a date, exclusive),
-  `category`, and `form` (for example `I-485`), and answers `{ "items": [...] }` newest first.
-  `before` pages by date, so items that share the last date of a page can fall between pages.
+  `beforeId`, `category`, and `form` (for example `I-485`), and answers `{ "items": [...] }`
+  newest first. To page, pass the last item's `publishedOn` as `before` and its `id` as `beforeId`:
+  items that share that date are then neither repeated nor skipped. `beforeId` without `before` is
+  ignored.
 
 ### Run a job now
 
