@@ -1,17 +1,41 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { applyTheme } from './lib/theme';
-  import { prefs } from './lib/stores/prefs.svelte';
+  import { initData, store } from './lib/stores/data.svelte';
   import { router, startRouter } from './lib/stores/router.svelte';
   import AppNav from './lib/ui/AppNav.svelte';
   import LoadingIndicator from './lib/ui/LoadingIndicator.svelte';
   import SnackbarHost from './lib/ui/SnackbarHost.svelte';
-  import Placeholder from './routes/Placeholder.svelte';
+  import SheetHost from './lib/sheets/SheetHost.svelte';
+  import Cases from './routes/Cases.svelte';
   import Settings from './routes/Settings.svelte';
+  import type { Component } from 'svelte';
 
-  const loadDesignSystem = () => import('./routes/DesignSystem.svelte');
+  // Pages other than Cases and Settings load on demand to keep the first load small.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function loadRoute(name: string): Promise<{ default: Component<any> }> {
+    switch (name) {
+      case 'case':
+        return import('./routes/CaseDetail.svelte');
+      case 'insights':
+        return import('./routes/Insights.svelte');
+      case 'updates':
+        return import('./routes/Updates.svelte');
+      case 'tools':
+        return import('./routes/Tools.svelte');
+      default:
+        return import('./routes/DesignSystem.svelte');
+    }
+  }
+
+  const route = $derived(router.route);
+
+  const prefs = $derived(store.data.prefs);
 
   $effect(() => startRouter());
+  $effect(() => {
+    void initData();
+  });
 
   $effect(() => {
     applyTheme({ seed: prefs.seed, mode: prefs.theme, highContrast: prefs.highContrast });
@@ -53,40 +77,22 @@
 <AppNav current={router.route.name} />
 
 <main id="main" tabindex="-1">
-  {#if router.route.name === 'cases'}
-    <Placeholder
-      title="Cases"
-      icon="folder"
-      missing="Case tracking, USCIS JSON import, and deadlines are part of the next phase. This build contains the app shell and the design system."
-    />
-  {:else if router.route.name === 'insights'}
-    <Placeholder
-      title="Insights"
-      icon="monitoring"
-      missing="Wait bars, processing time series, and priority date projections are part of the next phase."
-    />
-  {:else if router.route.name === 'updates'}
-    <Placeholder
-      title="Updates"
-      icon="newspaper"
-      missing="Official source links and check tracking are part of the next phase."
-    />
-  {:else if router.route.name === 'tools'}
-    <Placeholder
-      title="Tools"
-      icon="handyman"
-      missing="The priority date checker, timeline planner, fee tally, and checklists are part of the next phase."
-    />
-  {:else if router.route.name === 'settings'}
+  {#if route.name === 'cases'}
+    <Cases />
+  {:else if route.name === 'settings'}
     <Settings />
-  {:else if router.route.name === 'design'}
-    {#await loadDesignSystem()}
-      <div class="loading"><LoadingIndicator label="Loading design system" /></div>
+  {:else}
+    {#await loadRoute(route.name)}
+      <div class="loading"><LoadingIndicator label="Loading page" /></div>
     {:then module}
-      <module.default />
+      {#if route.name === 'case'}
+        {#key route.id}<module.default id={route.id ?? ''} />{/key}
+      {:else}
+        <module.default />
+      {/if}
     {:catch}
-      <p class="error">
-        The design system page failed to load. Check your connection, then reload.
+      <p class="error" role="alert">
+        This page failed to load. Check your connection, then reload.
       </p>
     {/await}
   {/if}
@@ -96,6 +102,7 @@
   Stored on this device only. Not legal advice. Not affiliated with USCIS.
 </footer>
 
+<SheetHost />
 <SnackbarHost />
 
 <style>

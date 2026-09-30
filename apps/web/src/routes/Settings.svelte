@@ -1,11 +1,14 @@
 <script lang="ts">
   import { SEED_PRESETS, type ThemeMode } from '@waymark/theme';
-  import { prefs, updatePrefs } from '../lib/stores/prefs.svelte';
+  import { store } from '../lib/stores/data.svelte';
+  import { updatePrefs } from '../lib/stores/prefs.svelte';
   import ButtonGroup from '../lib/ui/ButtonGroup.svelte';
   import Icon from '../lib/ui/Icon.svelte';
   import PageHeader from '../lib/ui/PageHeader.svelte';
   import SeedPicker from '../lib/ui/SeedPicker.svelte';
   import Switch from '../lib/ui/Switch.svelte';
+
+  const prefs = $derived(store.data.prefs);
 
   const THEMES: { value: ThemeMode; label: string }[] = [
     { value: 'system', label: 'System' },

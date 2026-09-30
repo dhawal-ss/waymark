@@ -1,29 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PREFS, sanitizePrefs } from '../src/lib/stores/prefs.svelte';
 import { parseHash } from '../src/lib/stores/router.svelte';
 import { dismissSnackbar, showSnackbar, snackbar } from '../src/lib/stores/snackbar.svelte';
 import { rovingIndex } from '../src/lib/ui/keys';
 import { radii, shapePath } from '../src/lib/ui/shapes';
-
-describe('sanitizePrefs', () => {
-  it('falls back to defaults for missing or invalid values', () => {
-    expect(sanitizePrefs(null)).toEqual(DEFAULT_PREFS);
-    expect(sanitizePrefs({ theme: 'sepia', seed: 'blue', highContrast: 'yes' })).toEqual(
-      DEFAULT_PREFS,
-    );
-  });
-
-  it('keeps valid values and lowercases the seed', () => {
-    expect(
-      sanitizePrefs({ theme: 'dark', seed: '#E0457B', highContrast: true, maskReceipts: true }),
-    ).toEqual({
-      theme: 'dark',
-      seed: '#e0457b',
-      highContrast: true,
-      maskReceipts: true,
-    });
-  });
-});
 
 describe('parseHash', () => {
   it('maps known paths and defaults to cases', () => {
@@ -31,6 +10,12 @@ describe('parseHash', () => {
     expect(parseHash('#/tools').name).toBe('tools');
     expect(parseHash('').name).toBe('cases');
     expect(parseHash('#/unknown')).toEqual({ name: 'cases', path: '/cases' });
+    expect(parseHash('#/case/abc-123')).toEqual({
+      name: 'case',
+      path: '/case/abc-123',
+      id: 'abc-123',
+    });
+    expect(parseHash('#/case/../x').name).toBe('cases');
   });
 });
 

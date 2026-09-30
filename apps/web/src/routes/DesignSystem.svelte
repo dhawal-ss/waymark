@@ -1,7 +1,7 @@
 <script lang="ts">
   import { FORM_TYPES, STATUS_KEYS, type Tone } from '@waymark/core';
   import { contrast, ROLE_NAMES, SPRINGS, springCurve, type Role } from '@waymark/theme';
-  import { prefs } from '../lib/stores/prefs.svelte';
+  import { store } from '../lib/stores/data.svelte';
   import { showSnackbar } from '../lib/stores/snackbar.svelte';
   import Button from '../lib/ui/Button.svelte';
   import ButtonGroup from '../lib/ui/ButtonGroup.svelte';
@@ -22,6 +22,8 @@
   import Switch from '../lib/ui/Switch.svelte';
   import TextField from '../lib/ui/TextField.svelte';
   import WavyProgress from '../lib/ui/WavyProgress.svelte';
+
+  const prefs = $derived(store.data.prefs);
 
   const PAIRS: [Role, Role][] = [
     ['primary', 'on-primary'],

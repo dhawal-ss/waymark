@@ -1,8 +1,10 @@
-export type RouteName = 'cases' | 'insights' | 'updates' | 'tools' | 'settings' | 'design';
+export type RouteName = 'cases' | 'case' | 'insights' | 'updates' | 'tools' | 'settings' | 'design';
 
 export interface Route {
   name: RouteName;
   path: string;
+  /** Case id for the case route. */
+  id?: string;
 }
 
 const PATHS: Record<string, RouteName> = {
@@ -17,11 +19,14 @@ const PATHS: Record<string, RouteName> = {
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, '') || '/cases';
   const name = PATHS[path];
-  return name ? { name, path } : { name: 'cases', path: '/cases' };
+  if (name) return { name, path };
+  const m = /^\/case\/([A-Za-z0-9_-]+)$/.exec(path);
+  if (m?.[1]) return { name: 'case', path, id: m[1] };
+  return { name: 'cases', path: '/cases' };
 }
 
-export function href(path: string): string {
-  return `#${path}`;
+export function casePath(id: string): string {
+  return `#/case/${id}`;
 }
 
 export const router: { route: Route } = $state({ route: parseHash(location.hash) });

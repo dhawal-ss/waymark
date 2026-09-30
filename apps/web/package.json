@@ -12,12 +12,14 @@
   },
   "dependencies": {
     "@waymark/core": "workspace:*",
-    "@waymark/theme": "workspace:*"
+    "@waymark/theme": "workspace:*",
+    "idb": "^8.0.3"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@testing-library/svelte": "^5.4.2",
     "@types/node": "^22.20.4",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.1.1",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.6",

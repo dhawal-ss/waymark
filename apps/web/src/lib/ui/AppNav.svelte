@@ -45,7 +45,9 @@
     },
   ];
 
-  const activeRoute = $derived(current === 'design' ? 'settings' : current);
+  const activeRoute = $derived(
+    current === 'design' ? 'settings' : current === 'case' ? 'cases' : current,
+  );
 </script>
 
 <nav class="nav" aria-label="Main">
