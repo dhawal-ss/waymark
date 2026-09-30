@@ -1,13 +1,13 @@
 name: Deploy web app
 
-# Publishes apps/web to GitHub Pages on every push to main.
+# Publishes apps/web to GitHub Pages on every push to the repository's default branch, whichever
+# branch that is (GitHub Pages accepts deploys only from the default branch).
 # Needs "GitHub Actions" as the Pages source (Settings, Pages). To turn it off, set the
 # repository variable DEPLOY_PAGES to "false" (Settings, Secrets and variables, Actions).
 # Optional: set VITE_SYNC_URL to a sync server address to prefill it in the app.
 
 on:
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ vars.DEPLOY_PAGES != 'false' }}
+    if: ${{ vars.DEPLOY_PAGES != 'false' && github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

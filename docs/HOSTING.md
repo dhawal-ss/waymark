@@ -7,8 +7,9 @@ for install, offline use, and sharing case JSON into the app on Android.
 
 1. In GitHub, open Settings, then Pages, and set Source to GitHub Actions. Private repositories need
    a plan that includes Pages; otherwise use option B.
-2. Push to `main` or run the "Deploy web app" workflow by hand. The app appears at
-   `https://<user>.github.io/waymark/`.
+2. Push to the default branch or run the "Deploy web app" workflow by hand. The app appears at
+   `https://<user>.github.io/waymark/`. Pushes to other branches build nothing, because GitHub Pages
+   accepts deploys only from the default branch.
 3. To stop deploying, add the repository variable `DEPLOY_PAGES` with the value `false` (Settings,
    Secrets and variables, Actions, Variables).
 
