@@ -10,7 +10,9 @@
     "db:migrate:remote": "wrangler d1 migrations apply waymark --remote",
     "sandbox:check": "node --experimental-strip-types scripts/sandbox-check.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "data:check": "node --experimental-strip-types scripts/data-check.ts",
+    "forms:import": "node --experimental-strip-types scripts/import-form-stats.ts"
   },
   "dependencies": {
     "@waymark/core": "workspace:*",

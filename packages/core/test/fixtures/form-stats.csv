@@ -1,0 +1,11 @@
+"Number of Service-wide Forms by Fiscal Year To Date, Quarter, and Form Status"
+"Synthetic test file in the layout of the USCIS quarterly report. Values are made up."
+,,,,,
+Form Number,Field Office or Service Center,Received,Approved,Denied,Pending,Approval Rate
+I-485,National Benefits Center,"12,345","8,001",512,"44,210",94%
+,Texas Service Center,"3,400","2,100",D,"9,876",90%
+I-485 Total,,"15,745","10,101",512,"54,086",
+I-765,Potomac Service Center,"20,000","18,500","1,200","6,000",93%
+"Form I-130",Nebraska Service Center,"9,000","4,000",-,"70,500",
+Note: D = data withheld to protect privacy,,,,,
+Grand Total,,,,,

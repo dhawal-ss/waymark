@@ -12,6 +12,10 @@ export interface Env {
   DAILY_QUOTA?: string;
   MAX_RECEIPTS_PER_ACCOUNT?: string;
   MAX_ACCOUNTS?: string;
+  PUBLIC_DATA_ENABLED?: string;
+  PROCESSING_TIMES_BASE_URL?: string;
+  /** Secret for the admin API (targets, quarterly data imports, manual runs). */
+  ADMIN_TOKEN?: string;
 }
 
 export interface Config {
@@ -34,6 +38,14 @@ export interface Config {
   inactiveAccountDays: number;
   /** Snapshots kept per receipt. */
   maxSnapshots: number;
+  publicDataEnabled: boolean;
+  processingTimesBaseUrl: string;
+  /** Pages fetched per daily run and the gap between them, to be gentle with official sites. */
+  publicBatchSize: number;
+  publicGapMs: number;
+  /** Months of Visa Bulletins to load when the table is empty. */
+  bulletinBackfillMonths: number;
+  adminToken: string;
 }
 
 const int = (value: string | undefined, fallback: number, min: number, max: number) => {
@@ -60,5 +72,13 @@ export function readConfig(env: Env): Config {
     refreshCooldownMinutes: 60,
     inactiveAccountDays: 180,
     maxSnapshots: 50,
+    publicDataEnabled: env.PUBLIC_DATA_ENABLED !== 'false',
+    processingTimesBaseUrl: (
+      env.PROCESSING_TIMES_BASE_URL || 'https://egov.uscis.gov/processing-times'
+    ).replace(/\/+$/, ''),
+    publicBatchSize: 60,
+    publicGapMs: 1000,
+    bulletinBackfillMonths: 24,
+    adminToken: env.ADMIN_TOKEN ?? '',
   };
 }

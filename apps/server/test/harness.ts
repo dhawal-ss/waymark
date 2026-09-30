@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { createApp, type AppDeps } from '../src/app';
 import { readConfig, type Env } from '../src/config';
 import { createSealer, toBase64 } from '../src/crypto';
+import { PublicStore } from '../src/publicStore';
 import { Store } from '../src/store';
 import { UscisClient } from '../src/uscis';
 import { FakeD1 } from './d1';
@@ -75,8 +76,16 @@ export function mockUscis(responses: Record<string, unknown>) {
   };
 }
 
+export type PublicResponse =
+  { status?: number; body: string | object } | ((url: string) => Response);
+
 export async function setup(
-  options: { env?: Partial<Env>; responses?: Record<string, unknown>; start?: string } = {},
+  options: {
+    env?: Partial<Env>;
+    responses?: Record<string, unknown>;
+    start?: string;
+    publicResponses?: Record<string, PublicResponse>;
+  } = {},
 ) {
   const db = FakeD1.withMigrations();
   const key = (n: number) => toBase64(new Uint8Array(32).fill(n));
@@ -88,14 +97,28 @@ export async function setup(
     RECEIPT_ENC_KEY: key(7),
     RECEIPT_HMAC_KEY: key(9),
     ALLOWED_ORIGINS: ORIGIN,
+    ADMIN_TOKEN: 'admin-secret',
     ...options.env,
   };
   const uscisMock = mockUscis(options.responses ?? {});
   let now = new Date(options.start ?? '2026-09-30T12:00:00.000Z');
   const sleeps: number[] = [];
+  const publicResponses: Record<string, PublicResponse> = { ...options.publicResponses };
+  const publicCalls: { url: string; headers: Headers }[] = [];
+  const publicFetch = async (url: string, init?: RequestInit) => {
+    publicCalls.push({ url, headers: new Headers(init?.headers) });
+    const r = publicResponses[url];
+    if (!r) return new Response('Not found', { status: 404 });
+    if (typeof r === 'function') return r(url);
+    return new Response(typeof r.body === 'string' ? r.body : JSON.stringify(r.body), {
+      status: r.status ?? 200,
+    });
+  };
   const config = readConfig(env);
   const deps: AppDeps = {
     store: new Store(env.DB),
+    publicStore: new PublicStore(env.DB),
+    fetch: publicFetch,
     uscis: new UscisClient({
       baseUrl: config.baseUrl,
       clientId: env.USCIS_CLIENT_ID,
@@ -132,6 +155,10 @@ export async function setup(
     account,
     subscribe,
     sleeps,
+    publicCalls,
+    publicResponses,
+    admin: (path: string, init: RequestInit = {}) =>
+      request(path, { ...init, token: 'admin-secret' }),
     advance: (ms: number) => (now = new Date(now.getTime() + ms)),
   };
 }

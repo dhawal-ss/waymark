@@ -1,0 +1,31 @@
+{
+  "data": {
+    "processing_time": {
+      "form_name": "I-485",
+      "office_code": "NBC",
+      "form_note_en": "Synthetic test response in the shape of the processing times page data.",
+      "range": [
+        { "unit": "Months", "value": 14.5 },
+        { "unit": "Months", "value": 9 }
+      ],
+      "subtypes": [
+        {
+          "form_type": "134A",
+          "publication_date": "July 25, 2026",
+          "subtype_info_en": "Family-based adjustment applications",
+          "range": [
+            { "unit": "Months", "unit_en": "Months", "value": 13.5 },
+            { "unit": "Months", "unit_en": "Months", "value": 8 }
+          ]
+        },
+        {
+          "form_type": "134B",
+          "publication_date": "July 25, 2026",
+          "subtype_info_en": "Employment-based adjustment applications",
+          "range": [{ "unit": "Weeks", "value": 26 }]
+        }
+      ]
+    }
+  },
+  "message": "OK"
+}

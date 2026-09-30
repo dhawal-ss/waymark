@@ -14,3 +14,7 @@ export * from './projection.ts';
 export * from './sanitize.ts';
 export * from './transfer.ts';
 export * from './demo.ts';
+export * from './public/html.ts';
+export * from './public/visaBulletin.ts';
+export * from './public/processingTimes.ts';
+export * from './public/formStats.ts';

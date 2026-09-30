@@ -1,5 +1,5 @@
 # Waymark sync server. Secrets are never stored here; set them with `wrangler secret put`:
-#   USCIS_CLIENT_ID, USCIS_CLIENT_SECRET, RECEIPT_ENC_KEY, RECEIPT_HMAC_KEY
+#   USCIS_CLIENT_ID, USCIS_CLIENT_SECRET, RECEIPT_ENC_KEY, RECEIPT_HMAC_KEY, ADMIN_TOKEN
 name = "waymark-sync"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
@@ -12,8 +12,9 @@ database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [triggers]
-# Every 30 minutes. Each run checks the receipts that are due, within the daily quota.
-crons = ["*/30 * * * *"]
+# Every 30 minutes: receipts that are due, within the daily quota.
+# Daily at 13:17 UTC: public data (processing times, Visa Bulletin).
+crons = ["*/30 * * * *", "17 13 * * *"]
 
 [vars]
 # Sandbox first. Switch to the production base URL only after USCIS approves production access.
@@ -23,3 +24,6 @@ POLL_INTERVAL_HOURS = "12"
 DAILY_QUOTA = "1000"
 MAX_RECEIPTS_PER_ACCOUNT = "10"
 MAX_ACCOUNTS = "500"
+# Public data from official sources. Set to "false" to turn the daily job off.
+PUBLIC_DATA_ENABLED = "true"
+PROCESSING_TIMES_BASE_URL = "https://egov.uscis.gov/processing-times"

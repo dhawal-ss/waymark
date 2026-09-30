@@ -5,8 +5,10 @@ import { Hono, type Context, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { checkReceipt, remainingQuota, type CheckerDeps } from './checker';
 import { randomId, randomToken, sha256Hex } from './crypto';
+import type { PublicDeps } from './publicJobs';
+import { mountPublicRoutes } from './publicRoutes';
 
-export type AppDeps = CheckerDeps;
+export type AppDeps = CheckerDeps & PublicDeps;
 
 type Vars = { accountId: string };
 type AppContext = Context<{ Variables: Vars }>;
@@ -242,6 +244,8 @@ export function createApp(deps: AppDeps | (() => Promise<AppDeps>)) {
       subscriptions: await Promise.all(subs.map((s) => view(d, s))),
     });
   });
+
+  mountPublicRoutes(app, resolve);
 
   app.notFound((c) => error(c, 404, 'not_found', 'Unknown endpoint.'));
   app.onError((err, c) => {
