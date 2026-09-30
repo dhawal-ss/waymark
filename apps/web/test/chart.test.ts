@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { linearScale, monthTicks, nearestIndex, niceTicks } from '../src/lib/chart';
+import {
+  countTicks,
+  linearScale,
+  monthTicks,
+  nearestIndex,
+  niceTicks,
+  segmentWidths,
+  topRoundedRect,
+} from '../src/lib/chart';
 
 describe('niceTicks', () => {
   it('uses round steps that cover the range', () => {
@@ -55,5 +63,58 @@ describe('monthTicks', () => {
 
   it('thins long ranges', () => {
     expect(monthTicks(day('2020-01-01'), day('2024-12-31')).length).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('countTicks', () => {
+  it('uses whole numbers that cover the maximum', () => {
+    expect(countTicks(0)).toEqual([0, 1]);
+    expect(countTicks(1)).toEqual([0, 1]);
+    expect(countTicks(4)).toEqual([0, 1, 2, 3, 4]);
+    expect(countTicks(7)).toEqual([0, 2, 4, 6, 8]);
+    expect(countTicks(23)).toEqual([0, 10, 20, 30]);
+  });
+});
+
+describe('segmentWidths', () => {
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+
+  it('sizes segments in proportion to their values', () => {
+    const w = segmentWidths([10, 30, 60], 200);
+    expect(w[0]).toBeCloseTo(20);
+    expect(w[1]).toBeCloseTo(60);
+    expect(w[2]).toBeCloseTo(120);
+  });
+
+  it('keeps a zero value visible and still fills the width', () => {
+    const w = segmentWidths([0, 50, 50], 200, 6);
+    expect(w[0]).toBe(6);
+    expect(sum(w)).toBeCloseTo(200);
+    expect(w[1]).toBeCloseTo(97);
+  });
+
+  it('pins several small segments without pushing others below the minimum', () => {
+    const w = segmentWidths([1, 1, 1, 100, 3], 120, 8);
+    for (const x of w) expect(x).toBeGreaterThanOrEqual(8 - 1e-9);
+    expect(sum(w)).toBeCloseTo(120);
+  });
+
+  it('splits evenly when every value is zero and copes with tiny widths', () => {
+    expect(segmentWidths([0, 0, 0], 90)).toEqual([30, 30, 30]);
+    expect(sum(segmentWidths([5, 5, 5, 5], 12, 6))).toBeCloseTo(12);
+    expect(segmentWidths([], 100)).toEqual([]);
+    expect(segmentWidths([1, 2], 0)).toEqual([0, 0]);
+  });
+});
+
+describe('topRoundedRect', () => {
+  it('starts and ends at the square base', () => {
+    const d = topRoundedRect(10, 20, 24, 30, 4);
+    expect(d.startsWith('M10.00 50.00')).toBe(true);
+    expect(d.endsWith('V50.00Z')).toBe(true);
+  });
+
+  it('shrinks the radius for short columns', () => {
+    expect(topRoundedRect(0, 0, 24, 2, 4)).toContain('A2.00 2.00');
   });
 });

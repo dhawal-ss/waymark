@@ -23,3 +23,5 @@ export * from './news.ts';
 export * from './public/newsClassify.ts';
 export * from './public/newsFederalRegister.ts';
 export * from './public/feed.ts';
+export * from './explain.ts';
+export * from './journey.ts';
