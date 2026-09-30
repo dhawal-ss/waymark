@@ -40,6 +40,8 @@ describe('classifyNews', () => {
       ['H-1B registration period', 'work'],
       ['OPT and STEM extension reminders', 'work'],
       ['Information for F-1 students', 'work'],
+      ['Requirements for the H-2 program', 'work'],
+      ['H-2B cap reached', 'work'],
       ['Beware of scams targeting applicants', 'safety'],
       ['Someone is impersonating agency officers', 'safety'],
       ['Fraudulent websites charge for free forms', 'safety'],
