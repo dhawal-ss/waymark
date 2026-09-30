@@ -116,7 +116,7 @@ export async function setup(
   };
   const config = readConfig(env);
   const deps: AppDeps = {
-    store: new Store(env.DB),
+    store: new Store(env.DB, () => now),
     publicStore: new PublicStore(env.DB),
     fetch: publicFetch,
     uscis: new UscisClient({

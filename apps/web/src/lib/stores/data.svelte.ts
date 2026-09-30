@@ -10,10 +10,12 @@ import {
 } from '@waymark/core';
 import type { IDBPDatabase } from 'idb';
 import { loadAll, openWaymarkDb, readSetting, saveAll, writeSetting, type WaymarkDB } from '../db';
-import { readJson, writeJson } from '../storage';
+import { readJson, removeKey, writeJson } from '../storage';
 import { showSnackbar } from './snackbar.svelte';
 
 export const PREFS_KEY = 'waymark:prefs';
+/** A copy of data whose IndexedDB write had not finished when the page was hidden or closed. */
+export const UNSAVED_KEY = 'waymark:unsaved';
 
 export const newId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -57,6 +59,31 @@ function mirrorPrefs(): void {
 
 // Counts changes, so a reload that finishes after a newer change does not overwrite it.
 let changes = 0;
+// The change count covered by the last finished write.
+let saved = 0;
+
+/**
+ * IndexedDB writes are asynchronous, so closing the app or reloading right after a change can
+ * abort the write. When the page is hidden with a write pending, keep a synchronous copy in
+ * localStorage; the next start saves it and removes it.
+ */
+function keepUnsaved(): void {
+  if (!db || saved === changes) return;
+  writeJson(UNSAVED_KEY, { schema: SCHEMA_VERSION, data: $state.snapshot(store.data) });
+}
+
+function restoreUnsaved(): void {
+  const pending = readJson<{ schema?: unknown; data?: unknown }>(UNSAVED_KEY);
+  if (!pending || pending.schema !== SCHEMA_VERSION || !pending.data) {
+    if (pending) removeKey(UNSAVED_KEY);
+    return;
+  }
+  // Stored data is untrusted input, like imports.
+  store.data = sanitizeData(pending.data, newId, nowInstant());
+  mirrorPrefs();
+  changes++;
+  scheduleSave();
+}
 
 async function load(): Promise<void> {
   if (!db) return;
@@ -81,6 +108,11 @@ export async function initData(): Promise<void> {
         'Waymark was updated or reset in another tab. Reload this tab to keep saving changes.';
     });
     await load();
+    restoreUnsaved();
+    addEventListener('pagehide', keepUnsaved);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') keepUnsaved();
+    });
   } catch {
     // Never save over data that could not be read.
     db?.close();
@@ -110,8 +142,11 @@ function scheduleSave(): void {
     await Promise.resolve();
     saveQueued = false;
     if (!db) return;
+    const upTo = changes;
     try {
       await saveAll(db, $state.snapshot(store.data) as AppData, SCHEMA_VERSION);
+      saved = Math.max(saved, upTo);
+      if (saved === changes) removeKey(UNSAVED_KEY);
       channel?.postMessage('changed');
       if (!persistRequested && navigator.storage?.persist) {
         persistRequested = true;

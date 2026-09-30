@@ -25,3 +25,11 @@ export function writeText(key: string, value: string): void {
     // Storage full or unavailable.
   }
 }
+
+export function removeKey(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage unavailable.
+  }
+}

@@ -28,9 +28,11 @@ export interface SnapshotRow {
 
 export class Store {
   private readonly db: D1Database;
+  private readonly now: () => Date;
 
-  constructor(db: D1Database) {
+  constructor(db: D1Database, now: () => Date = () => new Date()) {
     this.db = db;
+    this.now = now;
   }
 
   // Accounts
@@ -178,7 +180,7 @@ export class Store {
    * Remove receipts nobody tracks, with their snapshots. Their last check time stays in
    * recent_checks for `keepMs`, so the refresh cooldown survives deleting and re-adding.
    */
-  async collectGarbage(now = new Date(), keepMs = 3_600_000): Promise<void> {
+  async collectGarbage(now = this.now(), keepMs = 3_600_000): Promise<void> {
     await this.db.batch([
       this.db.prepare(
         `INSERT OR REPLACE INTO recent_checks (hmac, checked_at)

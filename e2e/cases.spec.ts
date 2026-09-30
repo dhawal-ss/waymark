@@ -325,3 +325,14 @@ test('shows event times in the chosen time zone', async ({ page }) => {
   await page.locator('a.card').first().click();
   await expect(page.getByText(/(PDT|PST)\. Day 0\./)).toBeVisible();
 });
+
+test('keeps a change made right before the page closes', async ({ page }) => {
+  await loadExample(page);
+  await page.locator('a.card', { hasText: 'MSC0000000003' }).click();
+  await page.getByRole('button', { name: 'Quick statuses' }).click();
+  await page.getByRole('menuitem', { name: 'Interview scheduled' }).click();
+  // Reload at once, before the IndexedDB write can finish.
+  await page.reload();
+  await expect(page.locator('.hero').getByText('Interview scheduled')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('waymark:unsaved'))).toBeNull();
+});
