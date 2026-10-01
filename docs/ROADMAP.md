@@ -202,8 +202,9 @@ Not done, needs you:
   Confirm the agency slug `u-s-citizenship-and-immigration-services` and the request format.
 - Add USCIS feed addresses to `USCIS_FEED_URLS` from the RSS links on the USCIS newsroom pages.
   None ship by default because the addresses were not verified.
-- Run `sandbox:check` with one staging receipt with and one without history. It prints the response
-  shape. The adapter accepts `hist_case_status` and `hist_case_data`; report which one is real.
+- Run `sandbox:check` with one staging receipt with and one without history to confirm a real
+  response. The portal's documented example matches the adapter (`hist_case_status`, plain dates in
+  the history, the current status listed in the history too).
 - Not verified: real device swipe and share, screen reader output for the feed and the charts,
   forced colors mode.
 

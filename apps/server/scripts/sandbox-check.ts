@@ -60,7 +60,7 @@ async function main(): Promise<number> {
   if (parsed.case.events.length <= 1) {
     console.log(
       'Only one status was read. If this receipt has a history, compare the shape above with the ' +
-        'fields Waymark reads (hist_case_status or hist_case_data) and report the difference.',
+        'fields Waymark reads (hist_case_status) and report the difference.',
     );
   }
   console.log('Waymark keeps:');

@@ -114,6 +114,51 @@ describe('parseCaseStatusResponse', () => {
     ]);
   });
 
+  // Shape of the example on the developer portal (first history entry): the history dates are
+  // plain dates, and the history already lists the current status as a sentence.
+  it('does not repeat the current status that the history already lists', () => {
+    const result = parseCaseStatusResponse({
+      case_status: {
+        receiptNumber: 'EAC9999103403',
+        formType: 'I-130',
+        submittedDate: '09-05-2023 14:28:46',
+        modifiedDate: '09-05-2023 14:28:46',
+        current_case_status_text_en: 'Case Was Approved',
+        hist_case_status: [
+          {
+            date: '2023-09-05',
+            completed_text_en: 'We approved your Form I-130, Petition for Alien Relative.',
+          },
+        ],
+      },
+    });
+    expect(result.ok && result.case.events).toEqual([
+      {
+        code: 'CS:WE_APPROVED_YOUR_FORM_I_130_PETITION_FOR_ALIEN_RELATIVE',
+        at: '2023-09-05T12:00:00.000Z',
+        text: 'We approved your Form I-130, Petition for Alien Relative.',
+      },
+    ]);
+    expect(result.ok && result.case.updatedAt).toBe('2023-09-05T14:28:46.000Z');
+  });
+
+  it('keeps a current status that the history does not list', () => {
+    const result = parseCaseStatusResponse({
+      case_status: {
+        receiptNumber: 'EAC9999103403',
+        formType: 'I-130',
+        submittedDate: '09-05-2023 14:28:46',
+        modifiedDate: '10-12-2023 09:15:00',
+        current_case_status_text_en: 'Case Was Approved',
+        hist_case_status: [{ date: '2023-09-05', completed_text_en: 'Case Was Received' }],
+      },
+    });
+    expect(result.ok && result.case.events.map((e) => e.text)).toEqual([
+      'Case Was Received',
+      'Case Was Approved',
+    ]);
+  });
+
   it('reports errors from the API message', () => {
     expect(parseCaseStatusResponse({ message: 'The receipt number entered is invalid' })).toEqual({
       ok: false,

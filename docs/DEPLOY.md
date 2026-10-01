@@ -60,8 +60,9 @@ two values.
    the two values, leave the `read` scope checked, and choose **Authorize** again. Then open
    **Case Status Update**, choose **Try it out**, and enter one of the staging receipt numbers listed
    at the top of that page. The sandbox is built around those staging receipts; do not expect a real
-   receipt number to work there. The page lists receipts with and without `hist_case_data` in
-   the payload, so test one of each.
+   receipt number to work there. The page lists staging receipts with and without history data in
+   the payload, so test one of each. If the test shows "Failed to fetch", your browser blocked
+   it (an extension or VPN is the usual cause); the deployed server is not affected by that.
 
 Then continue with step 1 below, which checks the same credentials from your machine.
 
@@ -70,7 +71,7 @@ The Authorize dialog shows the token URL `https://api-int.uscis.gov/oauth/access
 unchanged.
 
 What the official API can and cannot give you: for a receipt number it returns the case status
-text, form type, submitted and modified dates, and the status history (`hist_case_data`). It does
+text, form type, submitted and modified dates, and the status history (`hist_case_status`). It does
 not return the detailed event codes and notices that the signed-in USCIS case page shows. Waymark
 never signs in to USCIS for you, so those come from the case page you copy yourself.
 
@@ -130,12 +131,13 @@ VITE_SYNC_URL=https://waymark-sync.<your-subdomain>.workers.dev pnpm build
 
 ## Limits and quota
 
-- The Case Status API page on the developer portal states the limits for your app: a concurrency
-  limit (10 transactions per second, one request per 100 ms, when last checked) and a daily quota.
-  Waymark stays well under the rate: the server waits 220 ms between calls. `DAILY_QUOTA` defaults
-  to 1000, which is an assumption: set it to the daily quota the portal page states for your app
-  (lower it if the page says less). The server keeps 10% of the daily quota for new subscriptions
-  and manual refreshes.
+- Limits. The sandbox answers 429 above 5 transactions per second or 1,000 per day (its own
+  error text says so). The production section of the Case Status API page states a concurrency
+  limit (10 transactions per second, one request per 100 ms, when last checked) and a daily quota
+  that you should read there. The server waits 220 ms between calls, which stays under both rates.
+  `DAILY_QUOTA` defaults to 1000, which fits the sandbox; set it to the production daily quota
+  when you move to production. The server keeps 10% of the daily quota for new subscriptions and
+  manual refreshes.
 - Each receipt is checked every `POLL_INTERVAL_HOURS` (default 12), so about 450 receipts fit in
   the daily quota. `MAX_RECEIPTS_PER_ACCOUNT` (default 10) and `MAX_ACCOUNTS` (default 500) cap
   usage. Receipts that keep failing back off to at most 16 times the interval.

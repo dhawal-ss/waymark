@@ -91,8 +91,8 @@ export function parseCaseStatusResponse(body: unknown, fetchedAt?: string): Offi
     events.push({ code, at, text: label.slice(0, 200) });
   };
 
-  // The adapter follows `hist_case_status`; the developer portal also mentions `hist_case_data`.
-  // Accept either name until `sandbox:check` confirms which one responses use.
+  // The portal's documented example names the history `hist_case_status`. `hist_case_data` is
+  // accepted too, in case the staging payloads use that name.
   const history = [cs.hist_case_status, cs.hist_case_data, root.hist_case_data].find(Array.isArray);
   for (const h of history ?? []) {
     if (isObj(h)) add(text(h.completed_text_en), officialInstant(h.date));
@@ -100,7 +100,19 @@ export function parseCaseStatusResponse(body: unknown, fetchedAt?: string): Offi
   const submittedAt = officialInstant(cs.submittedDate);
   // Without dates the current status is still shown, dated when it was fetched.
   const modifiedAt = officialInstant(cs.modifiedDate) ?? submittedAt ?? toInstant(fetchedAt);
-  add(text(cs.current_case_status_text_en), modifiedAt);
+  // The history can already list the current status (as a sentence, on the same day), so it is
+  // not added a second time.
+  const current = text(cs.current_case_status_text_en);
+  const currentKey = officialStatusKey(current);
+  const listed =
+    currentKey !== undefined &&
+    modifiedAt !== undefined &&
+    events.some(
+      (e) =>
+        e.at.slice(0, 10) === modifiedAt.slice(0, 10) &&
+        officialStatusKey(e.text ?? '') === currentKey,
+    );
+  if (!listed) add(current, modifiedAt);
   events.sort((a, b) => a.at.localeCompare(b.at));
 
   const parsed: ParsedCase = {
