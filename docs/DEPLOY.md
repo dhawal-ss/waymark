@@ -24,6 +24,11 @@ are never replaced), and builds the web app with the Worker's workers.dev addres
 checks are on for everyone who opens the app. Open Workers and Pages once in the Cloudflare
 dashboard first so the account has a workers.dev subdomain.
 
+The workflow deploys only from the repository's default branch. If its runs show "skipped", open
+Settings, Branches and check that the default branch is the one you push to (usually `main`), and
+that the variable `DEPLOY_PAGES` is not `"false"`. Under Settings, Pages, the source must be
+"GitHub Actions".
+
 Optional repository variables: `USCIS_BASE_URL` (the production base URL once USCIS approves it),
 `APP_ORIGINS` (comma-separated, when the app is served from another origin), and `VITE_SYNC_URL`
 (to point the app at a different server).
